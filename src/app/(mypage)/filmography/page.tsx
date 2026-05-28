@@ -110,7 +110,7 @@ export default function FilmographyManagePage() {
       {/* FAB */}
       <Link
         href="/filmography/new"
-        className="fixed bottom-24 right-6 w-12 h-12 rounded-full bg-[#1A1A2E] flex items-center justify-center shadow-lg z-10"
+        className="fixed bottom-24 right-6 w-12 h-12 rounded-full bg-[#1A1A2E] flex items-center justify-center shadow-lg z-40"
       >
         <Plus size={22} color="white" />
       </Link>

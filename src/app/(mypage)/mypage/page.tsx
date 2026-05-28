@@ -151,7 +151,7 @@ export default function MypagePage() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[16px] font-bold text-[#1A1A1A]">스킬 및 특기</h3>
-            <Link href="/profile-edit" className="text-[13px] text-[#888888]">수정하기</Link>
+            <Link href="/skills" className="text-[13px] text-[#888888]">수정하기</Link>
           </div>
           {(actor?.skills ?? []).length === 0 ? (
             <p className="text-[14px] text-[#888888]">등록된 스킬이 없어요.</p>
@@ -170,7 +170,7 @@ export default function MypagePage() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[16px] font-bold text-[#1A1A1A]">대표 영상</h3>
-            <Link href="/showreel/new" className="text-[13px] text-[#888888]">수정하기</Link>
+            <Link href="/showreel" className="text-[13px] text-[#888888]">수정하기</Link>
           </div>
           {(actor?.showreels ?? []).length === 0 ? (
             <p className="text-[14px] text-[#888888]">등록된 영상이 없어요.</p>

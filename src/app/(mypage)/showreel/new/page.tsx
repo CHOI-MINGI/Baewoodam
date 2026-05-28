@@ -81,7 +81,7 @@ export default function ShowreelNewPage() {
 
     await fetch('/api/showreel', { method: 'POST', body: formData });
     setLoading(false);
-    router.push('/mypage');
+    router.push('/showreel');
   };
 
   return (

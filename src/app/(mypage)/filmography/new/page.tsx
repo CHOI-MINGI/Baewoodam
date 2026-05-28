@@ -183,10 +183,10 @@ export default function FilmographyNewPage() {
           <label className="text-[13px] font-medium text-[#1A1A1A] mb-2 block">포스터 이미지 <span className="text-[#888888] font-normal">(선택)</span></label>
           <button
             onClick={() => posterRef.current?.click()}
-            className="w-full h-[120px] rounded-xl border-2 border-dashed border-[#D9D9D9] flex flex-col items-center justify-center gap-2 overflow-hidden"
+            className="relative w-full h-[120px] rounded-xl border-2 border-dashed border-[#D9D9D9] flex flex-col items-center justify-center gap-2 overflow-hidden"
           >
             {posterPreview ? (
-              <Image src={posterPreview} alt="포스터" fill className="object-cover" />
+              <Image src={posterPreview} alt="포스터" fill className="object-cover rounded-xl" />
             ) : (
               <>
                 <ImagePlus size={24} className="text-[#BBBBBB]" />
