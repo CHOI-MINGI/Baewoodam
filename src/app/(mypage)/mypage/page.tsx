@@ -38,13 +38,17 @@ export default function MypagePage() {
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !actor) return;
-    const url = await uploadImageFile(file, 'profiles');
-    await fetch('/api/users/me', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coverImage: url }),
-    });
-    setActor((prev) => prev ? { ...prev, coverImage: url } : prev);
+    try {
+      const url = await uploadImageFile(file, 'profiles');
+      await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coverImage: url }),
+      });
+      setActor((prev) => prev ? { ...prev, coverImage: url } : prev);
+    } catch (err: any) {
+      alert(`이미지 업로드 실패: ${err.message}`);
+    }
   };
 
   if (loading) return <div className="min-h-screen animate-pulse bg-[#F5F5F5]" />;

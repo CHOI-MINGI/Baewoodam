@@ -12,11 +12,15 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 });
 
-  const url = await uploadImage(
-    bucket as 'profiles' | 'filmography-thumbnails',
-    session.user.id,
-    file,
-  );
-
-  return NextResponse.json({ url });
+  try {
+    const url = await uploadImage(
+      bucket as 'profiles' | 'filmography-thumbnails',
+      session.user.id,
+      file,
+    );
+    return NextResponse.json({ url });
+  } catch (err: any) {
+    console.error('[upload/image]', err);
+    return NextResponse.json({ error: err.message ?? '업로드 실패' }, { status: 500 });
+  }
 }

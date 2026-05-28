@@ -79,8 +79,14 @@ export default function ShowreelNewPage() {
     formData.append('tags', JSON.stringify(tags));
     if (relatedFilmo) formData.append('filmographyId', relatedFilmo);
 
-    await fetch('/api/showreel', { method: 'POST', body: formData });
+    const res = await fetch('/api/showreel', { method: 'POST', body: formData });
     setLoading(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(`업로드 실패: ${err.error ?? '서버 오류'}`);
+      return;
+    }
+    router.refresh();
     router.push('/showreel');
   };
 
