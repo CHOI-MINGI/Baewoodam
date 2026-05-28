@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 
-type ActorRow = Prisma.UserGetPayload<{
-  include: {
-    actorProfile: { select: { ageRange: true; skills: true } };
-    _count: { select: { filmographies: true; showreels: true } };
-  };
-}>;
+type ActorRow = {
+  id: string;
+  name: string | null;
+  image: string | null;
+  location: string | null;
+  createdAt: Date;
+  actorProfile: { ageRange: string | null; skills: string[] } | null;
+  _count: { filmographies: number; showreels: number };
+};
 
 const GENDER_LABEL_MAP: Record<string, string> = { 남성: 'MALE', 여성: 'FEMALE' };
 const AGE_LABEL_MAP: Record<string, string> = {
