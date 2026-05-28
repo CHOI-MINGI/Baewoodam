@@ -7,7 +7,7 @@ const PROTECTED_PATHS = [
   '/filmography', '/showreel', '/profile-edit',
 ];
 
-const LOGIN_ONLY_PATHS = ['/login'];
+const LOGIN_ONLY_PATHS = ['/login', '/onboarding', '/splash'];
 
 export default auth((req) => {
   const { nextUrl, auth: session } = req;
