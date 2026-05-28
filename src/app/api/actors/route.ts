@@ -50,7 +50,8 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
   });
 
-  const filtered = users.filter((u: ActorRow) => {
+  const rows = users as ActorRow[];
+  const filtered = rows.filter((u) => {
     const count = u._count.filmographies;
     return count >= minFilmo && count <= maxFilmo;
   });
