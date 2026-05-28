@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
+
+type ActorRow = Prisma.UserGetPayload<{
+  include: {
+    actorProfile: { select: { ageRange: true; skills: true } };
+    _count: { select: { filmographies: true; showreels: true } };
+  };
+}>;
 
 const GENDER_LABEL_MAP: Record<string, string> = { 남성: 'MALE', 여성: 'FEMALE' };
 const AGE_LABEL_MAP: Record<string, string> = {
@@ -40,7 +48,7 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
   });
 
-  const filtered = users.filter((u: typeof users[number]) => {
+  const filtered = users.filter((u: ActorRow) => {
     const count = u._count.filmographies;
     return count >= minFilmo && count <= maxFilmo;
   });
