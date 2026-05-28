@@ -14,8 +14,8 @@ export default function SplashPage() {
   }, [router]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white px-8">
-      <div className="flex flex-col gap-3" style={{ marginTop: '38%' }}>
+    <div className="flex flex-col min-h-screen bg-white px-8 justify-center">
+      <div className="flex flex-col gap-3" style={{ marginBottom: '20%' }}>
         <h1 className="text-[52px] font-bold text-[#1A1A2E] leading-tight tracking-tight">
           배우담
         </h1>
