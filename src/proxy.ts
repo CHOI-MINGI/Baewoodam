@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 const PROTECTED_PATHS = [
   '/home', '/actors', '/projects', '/casting',
   '/mypage', '/settings', '/notifications',
-  '/filmography', '/showreel', '/profile-edit',
+  '/filmography', '/showreel', '/profile-edit', '/chat',
 ];
 
 const LOGIN_ONLY_PATHS = ['/login', '/onboarding', '/splash'];
