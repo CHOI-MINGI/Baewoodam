@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Briefcase, User, Settings, Clapperboard, MessageCircle } from 'lucide-react';
+import { Home, Briefcase, User, Bell, Settings, Clapperboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TabItem {
@@ -14,8 +14,8 @@ interface TabItem {
 const ACTOR_TABS: TabItem[] = [
   { label: '홈', href: '/home', icon: Home },
   { label: '캐스팅', href: '/casting', icon: Briefcase },
-  { label: '채팅', href: '/chat', icon: MessageCircle },
   { label: '마이페이지', href: '/mypage', icon: User },
+  { label: '알림', href: '/notifications', icon: Bell },
   { label: '설정', href: '/settings', icon: Settings },
 ];
 
@@ -23,7 +23,7 @@ const AGENCY_TABS: TabItem[] = [
   { label: '홈', href: '/home', icon: Home },
   { label: '프로젝트', href: '/projects', icon: Clapperboard },
   { label: '캐스팅', href: '/casting', icon: Briefcase },
-  { label: '채팅', href: '/chat', icon: MessageCircle },
+  { label: '알림', href: '/notifications', icon: Bell },
   { label: '설정', href: '/settings', icon: Settings },
 ];
 
@@ -36,11 +36,7 @@ export default function BottomTabBar({ roleType = 'ACTOR' }: { roleType?: string
       {tabs.map(({ label, href, icon: Icon }) => {
         const active = pathname === href || (href !== '/home' && pathname.startsWith(href));
         return (
-          <Link
-            key={href}
-            href={href}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5"
-          >
+          <Link key={href} href={href} className="flex-1 flex flex-col items-center justify-center gap-0.5">
             <Icon size={22} className={cn(active ? 'text-[#1A1A2E]' : 'text-[#BBBBBB]')} />
             <span className={cn('text-[10px] font-medium', active ? 'text-[#1A1A2E]' : 'text-[#BBBBBB]')}>
               {label}

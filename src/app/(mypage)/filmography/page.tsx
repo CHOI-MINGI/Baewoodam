@@ -48,8 +48,14 @@ export default function FilmographyManagePage() {
             {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-[#F5F5F5] rounded-xl animate-pulse" />)}
           </div>
         ) : years.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
             <p className="text-[15px] text-[#888888]">등록된 필모그래피가 없어요.</p>
+            <Link
+              href="/filmography/new"
+              className="px-6 h-[46px] flex items-center rounded-full bg-[#1A1A2E] text-white text-[14px] font-semibold"
+            >
+              + 작품 추가하기
+            </Link>
           </div>
         ) : (
           <div className="flex flex-col gap-8">
