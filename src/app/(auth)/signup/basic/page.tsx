@@ -26,7 +26,7 @@ type FormValues = z.infer<typeof schema>;
 export default function BasicInfoPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const roleType = searchParams.get('roleType') ?? 'ACTOR';
+  const roleType = searchParams.get('role') ?? 'ACTOR';
 
   const [showPw, setShowPw] = useState(false);
   const [showPwConfirm, setShowPwConfirm] = useState(false);

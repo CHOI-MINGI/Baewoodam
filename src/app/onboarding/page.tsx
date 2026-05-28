@@ -33,13 +33,13 @@ export default function OnboardingPage() {
         {/* 하단 버튼 */}
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => router.push('/signup/basic?roleType=AGENCY')}
+            onClick={() => router.push('/signup/terms?role=AGENCY')}
             className="w-full h-[52px] rounded-full bg-white text-[#1A1A2E] text-[15px] font-semibold"
           >
             에이전시로 시작하기
           </button>
           <button
-            onClick={() => router.push('/signup/basic?roleType=ACTOR')}
+            onClick={() => router.push('/signup/terms?role=ACTOR')}
             className="w-full h-[52px] rounded-full bg-[#1A1A2E] text-white text-[15px] font-semibold border border-white/20"
           >
             배우로 시작하기

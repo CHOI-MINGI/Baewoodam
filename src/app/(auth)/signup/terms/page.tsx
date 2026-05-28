@@ -79,7 +79,10 @@ export default function TermsPage() {
       <div className="mt-auto pt-8">
         <button
           disabled={!allRequired}
-          onClick={() => router.push('/signup/basic')}
+          onClick={() => {
+            const role = new URLSearchParams(window.location.search).get('role') ?? 'ACTOR';
+            router.push(`/signup/basic?role=${role}`);
+          }}
           className={cn(
             'w-full h-[52px] rounded-full text-[15px] font-semibold transition-colors',
             allRequired
