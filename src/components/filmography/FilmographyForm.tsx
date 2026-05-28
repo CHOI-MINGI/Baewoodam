@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { X } from 'lucide-react';
 import DrumrollPicker from '@/components/shared/DrumrollPicker';
 import { cn } from '@/lib/utils';
-import { GENRE_OPTIONS, MEDIA_TYPE_OPTIONS, ROLE_OPTIONS, YEAR_OPTIONS } from '@/constants';
+import { MEDIA_TYPE_OPTIONS, ROLE_OPTIONS, YEAR_OPTIONS } from '@/constants';
 
 interface FilmographyFormProps {
   initialValues?: {
@@ -14,7 +15,6 @@ interface FilmographyFormProps {
     mediaType?: string;
     role?: string;
     characterName?: string;
-    genre?: string;
     description?: string;
   };
 }
@@ -41,10 +41,8 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
   const [role, setRole] = useState(
     initialValues?.role ? (ROLE_REV_MAP[initialValues.role] ?? '') : '',
   );
+  const [characterName, setCharacterName] = useState(initialValues?.characterName ?? '');
   const [description, setDescription] = useState(initialValues?.description ?? '');
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(
-    initialValues?.genre ? [initialValues.genre] : [],
-  );
 
   const [yearOpen, setYearOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
@@ -52,9 +50,6 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
   const [loading, setLoading] = useState(false);
 
   const isReady = title.trim() && year && mediaType && role;
-
-  const toggleGenre = (g: string) =>
-    setSelectedGenres((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]);
 
   const handleSave = async () => {
     if (!isReady) return;
@@ -64,14 +59,13 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
       year: Number(year),
       mediaType: MEDIA_LABEL_MAP[mediaType],
       role: ROLE_LABEL_MAP[role],
-      description,
-      genre: selectedGenres[0] ?? null,
+      characterName: characterName || null,
+      description: description || null,
     };
 
-    const url = isEdit ? `/api/filmography/${initialValues.id}` : '/api/filmography';
-    const method = isEdit ? 'PUT' : 'POST';
+    const url = isEdit ? `/api/filmography/${initialValues!.id}` : '/api/filmography';
     await fetch(url, {
-      method,
+      method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
@@ -85,6 +79,44 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
     router.push('/filmography');
   };
 
+  const DropdownRow = ({
+    label, value, placeholder, onOpen,
+  }: { label: string; value: string; placeholder: string; onOpen: () => void }) => (
+    <div>
+      <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">{label}</label>
+      <button
+        onClick={onOpen}
+        className="w-full flex items-center justify-between border-b border-[#E0E0E0] pb-2"
+      >
+        <span className={cn('text-[15px]', value ? 'text-[#1A1A1A]' : 'text-[#D9D9D9]')}>
+          {value || placeholder}
+        </span>
+        <span className="text-[#888888] text-[12px]">∨</span>
+      </button>
+    </div>
+  );
+
+  const TextRow = ({
+    label, value, onChange, placeholder,
+  }: { label: string; value: string; onChange: (v: string) => void; placeholder: string }) => (
+    <div>
+      <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">{label}</label>
+      <div className="flex items-center border-b border-[#E0E0E0] pb-2 gap-2">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1 text-[15px] outline-none text-[#1A1A1A] placeholder:text-[#D9D9D9] bg-transparent"
+        />
+        {value && (
+          <button type="button" onClick={() => onChange('')}>
+            <X size={16} className="text-[#888888]" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col min-h-screen px-5 pb-8">
       {/* 헤더 */}
@@ -94,66 +126,12 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
       </div>
 
       <div className="flex flex-col gap-5 flex-1">
-        {/* 작품명 */}
-        <div>
-          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">작품명</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="작품명 입력"
-            className="w-full text-[15px] outline-none border-b border-[#E0E0E0] pb-2 placeholder:text-[#D9D9D9]"
-          />
-        </div>
-
-        {/* 연도 */}
-        <div>
-          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">연도</label>
-          <button onClick={() => setYearOpen(true)} className="w-full flex justify-between border-b border-[#E0E0E0] pb-2">
-            <span className={cn('text-[15px]', year ? 'text-[#1A1A1A]' : 'text-[#D9D9D9]')}>{year || '연도 선택'}</span>
-            <span className="text-[#888888]">∨</span>
-          </button>
-        </div>
-
-        {/* 역할 */}
-        <div>
-          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">역할</label>
-          <button onClick={() => setRoleOpen(true)} className="w-full flex justify-between border-b border-[#E0E0E0] pb-2">
-            <span className={cn('text-[15px]', role ? 'text-[#1A1A1A]' : 'text-[#D9D9D9]')}>{role || '역할 선택'}</span>
-            <span className="text-[#888888]">∨</span>
-          </button>
-        </div>
-
-        {/* 한 줄 설명 */}
-        <div>
-          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">한 줄 설명</label>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="작품에 대한 한 줄 설명"
-            className="w-full text-[15px] outline-none border-b border-[#E0E0E0] pb-2 placeholder:text-[#D9D9D9]"
-          />
-        </div>
-
-        {/* 장르 태그 */}
-        <div>
-          <label className="text-[13px] font-medium text-[#1A1A1A] mb-2 block">장르</label>
-          <div className="flex flex-wrap gap-2">
-            {GENRE_OPTIONS.map((g) => (
-              <button
-                key={g}
-                onClick={() => toggleGenre(g)}
-                className={cn(
-                  'px-3 py-1.5 rounded-full border text-[13px] transition-colors',
-                  selectedGenres.includes(g)
-                    ? 'border-[#E53935] text-[#E53935]'
-                    : 'border-[#E0E0E0] text-[#1A1A1A]',
-                )}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
-        </div>
+        <TextRow label="작품명" value={title} onChange={setTitle} placeholder="작품명 입력" />
+        <DropdownRow label="미디어 타입" value={mediaType} placeholder="미디어 타입 선택" onOpen={() => setMediaOpen(true)} />
+        <DropdownRow label="연도" value={year} placeholder="연도 선택" onOpen={() => setYearOpen(true)} />
+        <DropdownRow label="역할" value={role} placeholder="역할 선택" onOpen={() => setRoleOpen(true)} />
+        <TextRow label="배역명" value={characterName} onChange={setCharacterName} placeholder="강민준" />
+        <TextRow label="한 줄 설명" value={description} onChange={setDescription} placeholder="작품에 대한 한 줄 설명" />
       </div>
 
       {/* 하단 버튼 */}
@@ -178,8 +156,8 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
         </button>
       </div>
 
+      <DrumrollPicker open={mediaOpen} onClose={() => setMediaOpen(false)} title="미디어 타입" options={[...MEDIA_TYPE_OPTIONS]} value={mediaType} onChange={setMediaType} />
       <DrumrollPicker open={yearOpen} onClose={() => setYearOpen(false)} title="연도 선택" options={YEAR_OPTIONS} value={year} onChange={setYear} />
-      <DrumrollPicker open={mediaOpen} onClose={() => setMediaOpen(false)} title="미디어 유형" options={[...MEDIA_TYPE_OPTIONS]} value={mediaType} onChange={setMediaType} />
       <DrumrollPicker open={roleOpen} onClose={() => setRoleOpen(false)} title="역할 선택" options={[...ROLE_OPTIONS]} value={role} onChange={setRole} />
     </div>
   );

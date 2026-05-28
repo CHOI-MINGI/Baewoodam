@@ -43,6 +43,7 @@ export interface ActorListItem {
 }
 
 export interface ActorDetail extends ActorListItem {
+  coverImage: string | null;
   bio: string | null;
   contactableTime: string | null;
   gender: GenderKey | null;

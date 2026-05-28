@@ -7,6 +7,7 @@ const updateSchema = z.object({
   name: z.string().optional(),
   bio: z.string().optional(),
   image: z.string().optional(),
+  coverImage: z.string().optional(),
   roleType: z.enum(['ACTOR', 'AGENCY']).optional(),
   onboardingCompleted: z.boolean().optional(),
   location: z.string().optional(),
