@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum RoleType {
+  ACTOR
+  AGENCY
+  ADMIN
+}
+
+enum AgeRange {
+  TEENS
+  TWENTIES
+  THIRTIES
+  FORTIES
+  FIFTIES
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MediaType {
+  FILM
+  DRAMA
+  OTT
+  WEB_DRAMA
+  SHORT_FILM
+  AD
+  MUSIC_VIDEO
+  OTHER
+}
+
+enum FilmRole {
+  LEAD
+  SUPPORTING
+  EXTRA
+  OTHER
+}
+
+enum ProjectMediaType {
+  DRAMA
+  FILM
+  OTT
+  WEB_DRAMA
+  AD
+  OTHER
+}
+
+enum RecruitStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum CastingStatus {
+  OPEN
+  CASTING
+  CAST
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  AUDITION_SUBMITTED
+  EXPIRED
+}
+
+enum NotificationType {
+  CASTING
+  FEED
+  SYSTEM
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id                   String   @id @default(cuid())
+  email                String   @unique
+  emailVerified        DateTime?
+  passwordHash         String?
+  name                 String?
+  image                String?
+  roleType             RoleType @default(ACTOR)
+  onboardingCompleted  Boolean  @default(false)
+  bio                  String?
+  location             String?
+  contactableTime      String?
+  contactMemo          String?
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  actorProfile         ActorProfile?
+  agencyProfile        AgencyProfile?
+  filmographies        Filmography[]
+  showreels            Showreel[]
+  projects             Project[]
+  sentOffers           CastingOffer[]   @relation("SentOffers")
+  receivedOffers       CastingOffer[]   @relation("ReceivedOffers")
+  notifications        Notification[]
+  recentlyViewed       RecentlyViewedActor[] @relation("ViewerUser")
+  recentlyViewedBy     RecentlyViewedActor[] @relation("ActorUser")
+
+  @@index([roleType])
+  @@index([isActive])
+}
+
+model ActorProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ageRange            AgeRange?
+  gender              Gender?
+  height              Int?
+  weight              Int?
+  skills              String[]
+  preferredGenres     String[]
+  publicPortfolioUrl  String?
+
+  @@index([ageRange])
+  @@index([gender])
+}
+
+model AgencyProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName     String?
+  position        String?
+  preferredGenres String[]
+}
+
+model Filmography {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  mediaType     MediaType @default(DRAMA)
+  role          FilmRole  @default(LEAD)
+  characterName String?
+  genre         String?
+  year          Int
+  thumbnailUrl  String?
+  description   String?
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  showreels     Showreel[]
+
+  @@index([userId])
+  @@index([year])
+}
+
+model Showreel {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  videoUrl       String
+  thumbnailUrl   String?
+  duration       Int?
+  filmographyId  String?
+  filmography    Filmography? @relation(fields: [filmographyId], references: [id], onDelete: SetNull)
+  tags           String[]
+  isFeatured     Boolean      @default(false)
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([isFeatured])
+}
+
+model Project {
+  id            String           @id @default(cuid())
+  ownerUserId   String
+  owner         User             @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  title         String
+  mediaType     ProjectMediaType @default(DRAMA)
+  genre         String?
+  platform      String?
+  logline       String?
+  synopsis      String?
+  recruitStatus RecruitStatus    @default(OPEN)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  characters    Character[]
+  castingOffers CastingOffer[]
+
+  @@index([ownerUserId])
+  @@index([recruitStatus])
+}
+
+model Character {
+  id             String        @id @default(cuid())
+  projectId      String
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name           String
+  ageRange       AgeRange?
+  gender         Gender?
+  description    String?
+  keywords       String[]
+  castingStatus  CastingStatus @default(OPEN)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  castingOffers  CastingOffer[]
+
+  @@index([projectId])
+}
+
+model CastingOffer {
+  id               String      @id @default(cuid())
+  projectId        String
+  project          Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  characterId      String
+  character        Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  senderUserId     String
+  sender           User        @relation("SentOffers", fields: [senderUserId], references: [id])
+  receiverUserId   String
+  receiver         User        @relation("ReceivedOffers", fields: [receiverUserId], references: [id])
+  shootingPeriod   String?
+  shootingLocation String?
+  conditions       String?
+  message          String?
+  status           OfferStatus @default(PENDING)
+  rejectReason     String?
+  auditionVideoUrl String?
+  auditionNote     String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([senderUserId])
+  @@index([receiverUserId])
+  @@index([status])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(SYSTEM)
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model RecentlyViewedActor {
+  id           String   @id @default(cuid())
+  viewerUserId String
+  viewer       User     @relation("ViewerUser", fields: [viewerUserId], references: [id], onDelete: Cascade)
+  actorUserId  String
+  actor        User     @relation("ActorUser", fields: [actorUserId], references: [id], onDelete: Cascade)
+  viewedAt     DateTime @default(now())
+
+  @@unique([viewerUserId, actorUserId])
+  @@index([viewerUserId])
+}
