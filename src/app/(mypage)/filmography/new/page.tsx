@@ -50,17 +50,22 @@ export default function FilmographyNewPage() {
   };
 
   const handleSave = async () => {
-    if (!isReady) return;
-    setLoading(true);
+  if (!isReady) return;
+  setLoading(true);
 
-    let thumbnailUrl: string | null = null;
-    if (posterFile) {
-      const form = new FormData();
-      form.append('file', posterFile);
-      form.append('bucket', 'filmography-thumbnails');
-      const up = await fetch('/api/upload/image', { method: 'POST', body: form });
-      if (up.ok) thumbnailUrl = (await up.json()).url;
-    }
+  console.log('posterFile:', posterFile);
+
+  let thumbnailUrl: string | null = null;
+  if (posterFile) {
+    console.log('uploading poster...');
+    const form = new FormData();
+    form.append('file', posterFile);
+    form.append('bucket', 'filmography-thumbnails');
+    const up = await fetch('/api/upload/image', { method: 'POST', body: form });
+    console.log('upload result:', up.status);
+    if (up.ok) thumbnailUrl = (await up.json()).url;
+    console.log('thumbnailUrl:', thumbnailUrl);
+  }
 
     await fetch('/api/filmography', {
       method: 'POST',

@@ -11,6 +11,7 @@ const createSchema = z.object({
   characterName: z.string().optional().nullable(),
   genre: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
+  thumbnailUrl: z.string().optional().nullable(),
 });
 
 export async function GET() {

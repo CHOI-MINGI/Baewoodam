@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Camera, Play } from 'lucide-react';
+import { Pencil, Play, Settings } from 'lucide-react';
 import { AGE_RANGE_MAP, MEDIA_TYPE_MAP, ROLE_MAP } from '@/constants';
 import type { ActorDetail } from '@/types';
 
@@ -17,7 +17,7 @@ async function uploadImageFile(file: File, bucket: string): Promise<string> {
 }
 
 export default function MypagePage() {
-  const [actor, setActor] = useState<ActorDetail & { coverImage?: string | null } | null>(null);
+  const [actor, setActor] = useState<(ActorDetail & { coverImage?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
   const coverRef = useRef<HTMLInputElement>(null);
 
@@ -25,7 +25,7 @@ export default function MypagePage() {
     fetch('/api/users/me')
       .then((r) => r.json())
       .then(async (user) => {
-        if (!user?.id) { setLoading(false); return; }
+        if (!user?.id) return setLoading(false);
         const res = await fetch(`/api/actors/${user.id}`);
         if (res.ok) {
           const data = await res.json();
@@ -51,14 +51,6 @@ export default function MypagePage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen animate-pulse bg-[#F5F5F5]" />;
-
-  const filmoByYear = (actor?.filmographies ?? []).reduce<Record<number, ActorDetail['filmographies']>>(
-    (acc, f) => { if (!acc[f.year]) acc[f.year] = []; acc[f.year].push(f); return acc; },
-    {} as Record<number, ActorDetail['filmographies']>,
-  );
-  const sortedYears = Object.keys(filmoByYear).map(Number).sort((a, b) => b - a);
-
   const formatDuration = (sec: number | null) => {
     if (!sec) return '';
     const m = Math.floor(sec / 60);
@@ -66,80 +58,110 @@ export default function MypagePage() {
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
+  // 필모그래피 연도별 그룹화
+  const filmoByYear = (actor?.filmographies ?? []).reduce<Record<number, ActorDetail['filmographies']>>(
+    (acc, f) => { if (!acc[f.year]) acc[f.year] = []; acc[f.year].push(f); return acc; },
+    {} as Record<number, ActorDetail['filmographies']>,
+  );
+  const sortedYears = Object.keys(filmoByYear).map(Number).sort((a, b) => b - a);
+
+  if (loading) return <div className="min-h-screen bg-[#F5F5F5]" />;
+
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      {/* 배경 히어로 */}
-      <div className="relative w-full h-[320px] bg-[#1A1A1A]">
-        {actor?.coverImage ? (
-          <Image src={actor.coverImage} alt="배경" fill className="object-cover opacity-80" />
-        ) : actor?.image ? (
-          <Image src={actor.image} alt="배경" fill className="object-cover opacity-70" />
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+    <div className="bg-[#F5F5F5] min-h-screen">
 
-        {/* 배경 사진 변경 버튼 */}
-        <button
-          onClick={() => coverRef.current?.click()}
-          className="absolute top-4 right-4 flex items-center gap-1.5 bg-black/40 text-white text-[12px] px-3 py-1.5 rounded-full"
-        >
-          <Camera size={14} />
-          배경 사진
-        </button>
-        <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
-
-        {/* 하단 정보 */}
-        <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
-          <h2 className="text-[26px] font-bold text-white leading-tight">{actor?.name ?? '이름 없음'}</h2>
-          <p className="text-[13px] text-white/70 mt-0.5">
-            {actor?.ageRange ? (AGE_RANGE_MAP as any)[actor.ageRange] : ''}{actor?.ageRange ? ' · ' : ''}필모 {actor?.filmographyCount ?? 0}편
-          </p>
-          {actor?.bio && (
-            <p className="text-[13px] text-white/60 mt-1 line-clamp-2">{actor.bio}</p>
-          )}
-          <div className="flex gap-2 mt-3">
-            <Link
-              href="/profile-edit"
-              className="px-4 py-1.5 rounded-full border border-white text-white text-[13px] font-medium"
-            >
-              수정하기
-            </Link>
-            <button className="px-4 py-1.5 rounded-full bg-[#E53935] text-white text-[13px] font-medium">
-              팔로워 현황보기
-            </button>
-          </div>
-        </div>
+      {/* 상단 타이틀 */}
+      <div className="flex items-center justify-between px-8 pt-8 pb-2">
+        <h1 className="text-[20px] font-bold text-[#1A1A1A]">마이페이지</h1>
+        <Link href="/settings">
+          <Settings size={22} className="text-[#1A1A1A]" />
+        </Link>
       </div>
 
-      <div className="px-5 py-6 flex flex-col gap-8">
-        {/* 필모그래피 */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[16px] font-bold text-[#1A1A1A]">필모그래피</h3>
-            <Link href="/filmography" className="text-[13px] text-[#888888]">수정하기</Link>
+      <div className="max-w-[1200px] mx-auto px-8 pb-12 space-y-5">
+
+        {/* 히어로 카드 */}
+        <section className="relative w-full rounded-[16px] overflow-hidden bg-[#1A1A1A]"
+           style={{ aspectRatio: '16/9' }}>
+          {actor?.coverImage ? (
+            <Image src={actor.coverImage} alt="" fill className="object-cover object-center" />
+          ) : actor?.image ? (
+            <Image src={actor.image} alt="" fill className="object-cover object-center" />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+          {/* 배경 사진 변경 */}
+          <button
+            onClick={() => coverRef.current?.click()}
+            className="absolute top-5 right-5 flex items-center gap-1.5 bg-black/40 text-white text-[12px] px-3 py-1.5 rounded-sm backdrop-blur-sm hover:bg-black/60 transition-colors"
+          >
+            <Pencil size={12} />
+            배경 사진
+          </button>
+          <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+
+          {/* 정보 */}
+          <div className="absolute bottom-0 left-0 p-10 text-white">
+            <h2 className="text-[48px] font-bold leading-tight">{actor?.name ?? '이름 없음'}</h2>
+            <p className="mt-2 text-white/70 text-[15px]">
+              {[
+                actor?.ageRange ? (AGE_RANGE_MAP as any)[actor.ageRange] : null,
+                actor?.location ?? '한국',
+                actor?.height ? `${actor.height}cm` : null,
+              ].filter(Boolean).join(' · ')}
+            </p>
+            {actor?.bio && (
+              <p className="mt-2 text-white/60 text-[14px] max-w-[500px]">{actor.bio}</p>
+            )}
+            <div className="flex gap-3 mt-5">
+              <Link
+                href="/profile-edit"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-sm border border-white/60 text-white text-[14px] font-medium hover:bg-white/10 transition-colors"
+              >
+                <Pencil size={13} />
+                수정하기
+              </Link>
+              <button className="flex items-center gap-2 px-5 py-2.5 rounded-sm bg-[#E53935] text-white text-[14px] font-medium hover:bg-[#C62828] transition-colors">
+                ♥ 팬하기 추가하기
+              </button>
+            </div>
           </div>
+        </section>
+
+        {/* 필모그래피 */}
+        <section className="bg-white rounded-[16px] p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-[20px] font-bold text-[#1A1A1A]">필모그래피</h2>
+            <Link href="/filmography" className="flex items-center gap-1.5 text-[14px] text-[#888888] hover:text-[#1A1A1A] transition-colors">
+              <Pencil size={13} />
+              수정하기
+            </Link>
+          </div>
+
           {sortedYears.length === 0 ? (
-            <p className="text-[14px] text-[#888888]">등록된 필모그래피가 없어요.</p>
+            <p className="text-[#888888]">등록된 필모그래피가 없어요.</p>
           ) : (
-            <div className="flex flex-col gap-6">
+            <div className="space-y-6">
               {sortedYears.map((year) => (
                 <div key={year}>
-                  <p className="text-[13px] font-semibold text-[#888888] mb-3">{year}</p>
-                  <div className="flex flex-col gap-4">
+                  <p className="text-[14px] font-semibold text-[#888888] mb-4">{year}</p>
+                  <div className="grid md:grid-cols-2 gap-5">
                     {filmoByYear[year].map((film) => (
-                      <div key={film.id} className="flex gap-3 items-start">
-                        {/* 포스터 */}
-                        <div className="w-[52px] h-[72px] rounded-lg overflow-hidden bg-[#F5F5F5] flex-shrink-0">
+                      <div key={film.id} className="flex gap-4 items-start">
+                        <div className="w-2 h-2 rounded-full border-2 border-[#E53935] mt-2 flex-shrink-0" />
+                        <div className="w-[72px] h-[96px] rounded-xl overflow-hidden bg-[#F5F5F5] flex-shrink-0">
                           {film.thumbnailUrl
-                            ? <Image src={film.thumbnailUrl} alt={film.title} width={52} height={72} className="object-cover w-full h-full" />
+                            ? <Image src={film.thumbnailUrl} alt={film.title} width={72} height={96} className="object-cover w-full h-full" />
                             : <div className="w-full h-full bg-[#E0E0E0]" />}
                         </div>
-                        <div className="flex-1 min-w-0 pt-0.5">
-                          <span className="text-[11px] text-[#888888] bg-[#F5F5F5] px-2 py-0.5 rounded">
+                        <div className="flex-1 min-w-0 pt-1">
+                          <span className="text-[12px] text-[#888888]">
                             {(MEDIA_TYPE_MAP as any)[film.mediaType] ?? film.mediaType}
                           </span>
-                          <p className="text-[14px] font-semibold text-[#1A1A1A] mt-1.5">{film.title}</p>
-                          <p className="text-[12px] text-[#888888]">
-                            {(ROLE_MAP as any)[film.role]} · {film.characterName ?? actor?.name}
+                          <p className="text-[15px] font-semibold text-[#1A1A1A] mt-0.5">{film.title}</p>
+                          <p className="text-[13px] text-[#888888]">
+                            {(ROLE_MAP as any)[film.role]}{film.characterName ? ` · ${film.characterName}` : ''}
                           </p>
                         </div>
                       </div>
@@ -152,17 +174,20 @@ export default function MypagePage() {
         </section>
 
         {/* 스킬 및 특기 */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[16px] font-bold text-[#1A1A1A]">스킬 및 특기</h3>
-            <Link href="/skills" className="text-[13px] text-[#888888]">수정하기</Link>
+        <section className="bg-white rounded-[32px] p-8">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-[20px] font-bold text-[#1A1A1A]">스킬 및 특기</h2>
+            <Link href="/skills" className="flex items-center gap-1.5 text-[14px] text-[#888888] hover:text-[#1A1A1A] transition-colors">
+              <Pencil size={13} />
+              수정하기
+            </Link>
           </div>
           {(actor?.skills ?? []).length === 0 ? (
-            <p className="text-[14px] text-[#888888]">등록된 스킬이 없어요.</p>
+            <p className="text-[#888888]">등록된 스킬이 없어요.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {(actor?.skills ?? []).map((skill) => (
-                <span key={skill} className="px-3 py-1.5 rounded-full border border-[#E0E0E0] text-[13px] text-[#1A1A1A]">
+                <span key={skill} className="px-4 py-2 rounded-full bg-[#EEEEEE] text-[14px] text-[#1A1A1A]">
                   {skill}
                 </span>
               ))}
@@ -171,40 +196,67 @@ export default function MypagePage() {
         </section>
 
         {/* 대표 영상 */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[16px] font-bold text-[#1A1A1A]">대표 영상</h3>
-            <Link href="/showreel" className="text-[13px] text-[#888888]">수정하기</Link>
+        <section className="bg-white rounded-[32px] p-8">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-[20px] font-bold text-[#1A1A1A]">대표 영상</h2>
+            <Link href="/showreel" className="flex items-center gap-1.5 text-[14px] text-[#888888] hover:text-[#1A1A1A] transition-colors">
+              <Pencil size={13} />
+              수정하기
+            </Link>
           </div>
           {(actor?.showreels ?? []).length === 0 ? (
-            <p className="text-[14px] text-[#888888]">등록된 영상이 없어요.</p>
+            <p className="text-[#888888]">등록된 영상이 없어요.</p>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="grid md:grid-cols-2 gap-5">
               {(actor?.showreels ?? []).map((reel) => (
-                <div key={reel.id} className="rounded-xl overflow-hidden border border-[#F0F0F0]">
-                  <div className="relative w-full aspect-video bg-[#1A1A1A]">
-                    {reel.thumbnailUrl
-                      ? <Image src={reel.thumbnailUrl} alt={reel.title} fill className="object-cover opacity-80" />
-                      : <div className="absolute inset-0 bg-[#2A2A2A]" />}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-11 h-11 rounded-full bg-white/80 flex items-center justify-center">
+                <Link key={reel.id} href={`/showreel/${reel.id}`} className="block group">
+                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1A1A1A]">
+                    <video
+                      src={reel.videoUrl}
+                      preload="metadata"
+                      className="w-full h-full object-cover"
+                      playsInline
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
                         <Play size={18} className="text-[#1A1A1A] ml-0.5" />
                       </div>
                     </div>
                   </div>
-                  <div className="px-3 py-2 flex items-center justify-between">
-                    <p className="text-[14px] font-medium text-[#1A1A1A]">{reel.title}</p>
+                  <div className="mt-2 px-0.5">
+                    <p className="text-[15px] font-medium text-[#1A1A1A]">{reel.title}</p>
                     {reel.duration && (
-                      <p className="text-[12px] text-[#888888]">{formatDuration(reel.duration)}</p>
+                      <p className="text-[13px] text-[#888888]">{formatDuration(reel.duration)}</p>
                     )}
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
         </section>
 
-        <div className="h-8" />
+        {/* 하단 배너 */}
+        <section className="bg-white rounded-[32px] overflow-hidden">
+          <div className="flex items-center gap-4 px-8 py-5 border-b border-[#F5F5F5] hover:bg-[#FAFAFA] cursor-pointer transition-colors">
+            <div className="w-10 h-10 rounded-full bg-[#FFF0F0] flex items-center justify-center flex-shrink-0">
+              <Pencil size={16} className="text-[#E53935]" />
+            </div>
+            <div>
+              <p className="text-[15px] font-semibold text-[#1A1A1A]">프리미엄 포트폴리오 꾸미기</p>
+              <p className="text-[13px] text-[#888888]">템플릿 디자인에서 각 섹션별로 포트폴리오를 꾸며보세요</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 px-8 py-5 hover:bg-[#FAFAFA] cursor-pointer transition-colors">
+            <div className="w-10 h-10 rounded-full bg-[#FFF0F0] flex items-center justify-center flex-shrink-0">
+              <Play size={16} className="text-[#E53935]" />
+            </div>
+            <div>
+              <p className="text-[15px] font-semibold text-[#1A1A1A]">프로필 상담 논옴</p>
+              <p className="text-[13px] text-[#888888]">광고로 출연 시설이 다바여서 나를 함께 보세요</p>
+            </div>
+          </div>
+        </section>
+
       </div>
     </div>
   );

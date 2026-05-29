@@ -95,7 +95,7 @@ export default function FilmographyManagePage() {
                           <Pencil size={16} className="text-[#888888]" />
                         </Link>
                         <button onClick={() => handleDelete(film.id)}>
-                          <X size={16} className="text-[#888888]" />
+                          <X size={16} className="text-[#888888]" />  
                         </button>
                       </div>
                     </div>
@@ -108,12 +108,18 @@ export default function FilmographyManagePage() {
       </div>
 
       {/* FAB */}
-      <Link
-        href="/filmography/new"
-        className="fixed bottom-24 right-6 w-12 h-12 rounded-full bg-[#1A1A2E] flex items-center justify-center shadow-lg z-40"
-      >
-        <Plus size={22} color="white" />
-      </Link>
+<Link
+  href="/filmography/new"
+  style={{ 
+    position: 'fixed', 
+    bottom: '30px', 
+    right: '30px', 
+    zIndex: 9999 
+  }}
+  className="w-14 h-14 rounded-full bg-[#1A1A2E] flex items-center justify-center shadow-xl"
+>
+  <Plus size={24} color="white" />
+</Link>
     </div>
   );
 }

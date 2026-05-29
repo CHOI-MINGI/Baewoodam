@@ -62,10 +62,23 @@ export default function ShowreelEditPage() {
 
   return (
     <div className="flex flex-col min-h-screen px-5 pb-8">
+      {/* 헤더 */}
       <div className="flex items-center gap-3 py-3 mb-4">
         <button onClick={() => router.back()} className="text-xl text-[#1A1A1A]">←</button>
         <h1 className="text-[16px] font-semibold text-[#1A1A1A]">쇼릴 편집</h1>
       </div>
+
+      {/* 영상 플레이어 */}
+      {reel.videoUrl && (
+        <div className="w-full rounded-xl overflow-hidden bg-black mb-6">
+          <video
+            src={reel.videoUrl}
+            controls
+            className="w-full aspect-video"
+            playsInline
+          />
+        </div>
+      )}
 
       <div className="flex flex-col gap-5 flex-1">
         {/* 제목 */}
