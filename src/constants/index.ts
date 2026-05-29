@@ -74,6 +74,8 @@ export const CASTING_STATUS_MAP = {
   ACCEPTED: '수락',
   REJECTED: '거절',
   AUDITION_SUBMITTED: '오디션 제출',
+  SELECTED: '최종 합격',
+  REJECTED_AFTER_AUDITION: '최종 불합격',
   EXPIRED: '만료',
 } as const;
 

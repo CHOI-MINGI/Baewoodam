@@ -72,7 +72,12 @@ enum OfferStatus {
   ACCEPTED
   REJECTED
   AUDITION_SUBMITTED
-  EXPIRED
+  // 만료
+  EXPIRED 
+  //최종 선택
+  SELECTED 
+  // 최종거절
+  REJECTED_AFTER_AUDITION 
 }
 
 enum NotificationType {

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { CASTING_STATUS_MAP, MEDIA_TYPE_MAP } from '@/constants';
 import type { CastingOfferWithDetails } from '@/types';
 import { format } from 'date-fns';
+import { useSession } from "next-auth/react";
 
 const TABS = ['전체', '확인안함', '수락', '거절', '마감'] as const;
 const STATUS_FILTER: Record<string, string[]> = {
@@ -15,16 +16,29 @@ const STATUS_FILTER: Record<string, string[]> = {
   '마감': ['EXPIRED'],
 };
 
+
+
 export default function CastingPage() {
+  const { data: session, status } = useSession();
   const [tab, setTab] = useState<string>('전체');
   const [offers, setOffers] = useState<CastingOfferWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/casting?type=received')
-      .then((r) => r.json())
-      .then((d) => { setOffers(d ?? []); setLoading(false); });
-  }, []);
+  if (status !== "authenticated") return;
+
+  const type =
+    (session?.user as any)?.roleType === "AGENCY"
+      ? "sent"
+      : "received";
+
+  fetch(`/api/casting?type=${type}`)
+    .then((r) => r.json())
+    .then((d) => {
+      setOffers(d ?? []);
+      setLoading(false);
+    });
+}, [session, status]);
 
   const filtered = tab === '전체'
     ? offers
@@ -34,7 +48,11 @@ export default function CastingPage() {
     <div className="flex flex-col min-h-full">
       {/* 헤더 */}
       <div className="px-4 py-3 border-b border-[#F0F0F0]">
-        <h1 className="text-[16px] font-semibold text-[#1A1A1A]">캐스팅 제안</h1>
+        <h1 className="text-[16px] font-semibold text-[#1A1A1A]">
+        {(session?.user as any)?.roleType === 'AGENCY'
+          ? '보낸 캐스팅 제안'
+          : '받은 캐스팅 제안'}
+        </h1>
       </div>
 
       {/* 탭 */}
