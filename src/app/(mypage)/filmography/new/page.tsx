@@ -31,6 +31,7 @@ export default function FilmographyNewPage() {
   const [genres, setGenres] = useState<string[]>([]);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
 
   const [mediaOpen, setMediaOpen] = useState(false);
   const [yearOpen, setYearOpen] = useState(false);
@@ -79,6 +80,7 @@ export default function FilmographyNewPage() {
         description: description || null,
         genre: genres[0] ?? null,
         thumbnailUrl,
+        youtubeUrl: youtubeUrl || null,
       }),
     });
 
@@ -180,6 +182,20 @@ export default function FilmographyNewPage() {
                 {g}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* 유튜브 URL */}
+        <div>
+          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">유튜브 URL <span className="text-[#888888] font-normal">(선택)</span></label>
+          <div className="flex items-center border-b border-[#E0E0E0] pb-2 gap-2">
+            <input
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://youtube.com/watch?v=..."
+              className="flex-1 text-[15px] outline-none text-[#1A1A1A] placeholder:text-[#D9D9D9] bg-transparent"
+            />
+            {youtubeUrl && <button type="button" onClick={() => setYoutubeUrl('')}><X size={16} className="text-[#888888]" /></button>}
           </div>
         </div>
 

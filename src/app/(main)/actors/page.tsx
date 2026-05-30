@@ -17,7 +17,7 @@ const DEFAULT_FILTERS: FilterValues = {
   gender: '',
   location: '',
   minFilmo: 0,
-  maxFilmo: 30,
+  maxFilmo: 999,
 };
 
 const FILTER_CHIPS = [
@@ -43,7 +43,6 @@ export default function ActorsPage() {
     if (f.gender) params.set('gender', f.gender);
     if (f.location) params.set('location', f.location);
     if (f.minFilmo > 0) params.set('minFilmo', String(f.minFilmo));
-    if (f.maxFilmo < 30) params.set('maxFilmo', String(f.maxFilmo));
     const res = await fetch(`/api/actors?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
@@ -69,7 +68,7 @@ export default function ActorsPage() {
       case 'ageRange': return !!filters.ageRange;
       case 'gender': return !!filters.gender;
       case 'location': return !!filters.location;
-      case 'filmCount': return filters.minFilmo > 0 || filters.maxFilmo < 30;
+      case 'filmCount': return filters.minFilmo > 0;
     }
   };
 
@@ -79,9 +78,10 @@ export default function ActorsPage() {
       case 'gender': return filters.gender || '성별';
       case 'location': return filters.location || '지역';
       case 'filmCount':
-        return filters.minFilmo > 0 || filters.maxFilmo < 30
-          ? `${filters.minFilmo}~${filters.maxFilmo}편`
+        return filters.minFilmo > 0
+          ? `${filters.minFilmo}편 이상`
           : '필모 수';
+
     }
   };
 

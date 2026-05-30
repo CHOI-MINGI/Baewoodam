@@ -5,13 +5,21 @@ import { useRouter } from 'next/navigation';
 import { Camera, Pencil, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DrumrollPicker from '@/components/shared/DrumrollPicker';
+import ImageCropper from '@/components/shared/ImageCropper';
 import { AGE_RANGE_OPTIONS } from '@/constants';
+
+const AGE_MAP: Record<string, string> = {
+  '10대': 'TEENS', '20대': 'TWENTIES', '30대': 'THIRTIES',
+  '40대': 'FORTIES', '50대': 'FIFTIES',
+};
 
 export default function ActorProfilePage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [ageRange, setAgeRange] = useState('');
@@ -20,22 +28,32 @@ export default function ActorProfilePage() {
 
   const isReady = name.trim() && bio.trim() && ageRange;
 
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPhoto(url);
-    // TODO: Supabase 업로드 후 실제 URL로 교체
+    e.target.value = '';
+    setCropSrc(URL.createObjectURL(file));
   };
 
-  const AGE_MAP: Record<string, string> = {
-    '10대': 'TEENS', '20대': 'TWENTIES', '30대': 'THIRTIES',
-    '40대': 'FORTIES', '50대': 'FIFTIES',
+  const handleCropConfirm = (blob: Blob) => {
+    setPhotoFile(new File([blob], 'profile.jpg', { type: 'image/jpeg' }));
+    setPhoto(URL.createObjectURL(blob));
+    setCropSrc(null);
   };
 
   const handleNext = async () => {
     if (!isReady) return;
     setLoading(true);
+
+    let imageUrl: string | null = null;
+    if (photoFile) {
+      const form = new FormData();
+      form.append('file', photoFile);
+      form.append('bucket', 'profiles');
+      const up = await fetch('/api/upload/image', { method: 'POST', body: form });
+      if (up.ok) imageUrl = (await up.json()).url;
+    }
+
     await fetch('/api/users/me', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -43,12 +61,23 @@ export default function ActorProfilePage() {
         name,
         bio,
         ageRange: AGE_MAP[ageRange],
-        ...(photo && { image: photo }),
+        ...(imageUrl && { image: imageUrl }),
       }),
     });
     setLoading(false);
     router.push('/signup/complete');
   };
+
+  if (cropSrc) {
+    return (
+      <ImageCropper
+        imageSrc={cropSrc}
+        aspect={3 / 4}
+        onConfirm={handleCropConfirm}
+        onCancel={() => setCropSrc(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen px-6 pt-4 pb-8">
@@ -82,7 +111,7 @@ export default function ActorProfilePage() {
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={handlePhoto}
+            onChange={handlePhotoSelect}
           />
         </div>
       </div>

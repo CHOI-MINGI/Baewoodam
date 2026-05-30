@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 // 추천 배우: 필모그래피 많은 순 (인기 배우)
 export async function GET(_req: NextRequest) {
   const users = await db.user.findMany({
-    where: { roleType: 'ACTOR', isActive: true },
+    where: { roleType: 'ACTOR', isActive: true, isPublic: true },
     include: {
       actorProfile: { select: { ageRange: true, skills: true } },
       _count: { select: { filmographies: true, showreels: true } },

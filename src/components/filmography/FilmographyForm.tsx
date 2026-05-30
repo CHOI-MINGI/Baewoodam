@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X } from 'lucide-react';
+import { X, ExternalLink } from 'lucide-react';
 import DrumrollPicker from '@/components/shared/DrumrollPicker';
 import { cn } from '@/lib/utils';
 import { MEDIA_TYPE_OPTIONS, ROLE_OPTIONS, YEAR_OPTIONS } from '@/constants';
@@ -16,6 +16,7 @@ interface FilmographyFormProps {
     role?: string;
     characterName?: string;
     description?: string;
+    youtubeUrl?: string | null;
   };
 }
 
@@ -43,6 +44,7 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
   );
   const [characterName, setCharacterName] = useState(initialValues?.characterName ?? '');
   const [description, setDescription] = useState(initialValues?.description ?? '');
+  const [youtubeUrl, setYoutubeUrl] = useState(initialValues?.youtubeUrl ?? '');
 
   const [yearOpen, setYearOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
@@ -61,6 +63,7 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
       role: ROLE_LABEL_MAP[role],
       characterName: characterName || null,
       description: description || null,
+      youtubeUrl: youtubeUrl || null,
     };
 
     const url = isEdit ? `/api/filmography/${initialValues!.id}` : '/api/filmography';
@@ -132,6 +135,29 @@ export default function FilmographyForm({ initialValues }: FilmographyFormProps)
         <DropdownRow label="역할" value={role} placeholder="역할 선택" onOpen={() => setRoleOpen(true)} />
         <TextRow label="배역명" value={characterName} onChange={setCharacterName} placeholder="강민준" />
         <TextRow label="한 줄 설명" value={description} onChange={setDescription} placeholder="작품에 대한 한 줄 설명" />
+        <div>
+          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">유튜브 URL <span className="text-[#888888] font-normal">(선택)</span></label>
+          <div className="flex items-center border-b border-[#E0E0E0] pb-2 gap-2">
+            <input
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://youtube.com/watch?v=..."
+              className="flex-1 text-[15px] outline-none text-[#1A1A1A] placeholder:text-[#D9D9D9] bg-transparent"
+            />
+            {youtubeUrl && <button type="button" onClick={() => setYoutubeUrl('')}><X size={16} className="text-[#888888]" /></button>}
+          </div>
+          {isEdit && youtubeUrl && (
+            <a
+              href={youtubeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 mt-2 text-[13px] text-[#E53935]"
+            >
+              <ExternalLink size={13} />
+              유튜브에서 보기
+            </a>
+          )}
+        </div>
       </div>
 
       {/* 하단 버튼 */}

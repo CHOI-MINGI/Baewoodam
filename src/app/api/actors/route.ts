@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
     where: {
       roleType: 'ACTOR',
       isActive: true,
+      isPublic: true,
       ...(location && { location }),
       actorProfile: {
         ...(ageRange && { ageRange: ageRange as any }),

@@ -43,3 +43,10 @@ next-env.d.ts
 /src/generated/prisma
 
 .vercel
+
+# 디자인 예시 파일
+예시 디자인/
+/*.png
+/*.zip
+prisma.zip
+prisma\ \(2\).zip

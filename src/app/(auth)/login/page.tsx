@@ -102,7 +102,7 @@ export default function LoginPage() {
 
         <div className="text-center text-[14px] text-[#888888]">
           계정이 없으신가요?{' '}
-          <Link href="/signup/terms" className="text-[#1A1A2E] font-semibold">회원가입</Link>
+          <Link href="/signup" className="text-[#1A1A2E] font-semibold">회원가입</Link>
         </div>
       </div>
     </div>

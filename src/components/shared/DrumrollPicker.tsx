@@ -66,9 +66,9 @@ export default function DrumrollPicker({
         )}
 
         <div className="relative" style={{ height: ITEM_HEIGHT * VISIBLE_COUNT }}>
-          {/* 선택 영역 하이라이트 */}
+          {/* 선택 영역 상하 구분선 */}
           <div
-            className="absolute left-0 right-0 pointer-events-none bg-[#F5F5F5] rounded-lg mx-4"
+            className="absolute left-4 right-4 pointer-events-none border-t-2 border-b-2 border-[#1A1A2E]"
             style={{
               top: ITEM_HEIGHT * Math.floor(VISIBLE_COUNT / 2),
               height: ITEM_HEIGHT,
@@ -99,8 +99,8 @@ export default function DrumrollPicker({
                   className={cn(
                     'flex items-center justify-center text-[16px] transition-all cursor-pointer select-none',
                     isSelected
-                      ? 'font-semibold text-[#1A1A1A]'
-                      : 'text-[#BBBBBB]',
+                      ? 'font-bold text-[#1A1A2E]'
+                      : 'text-[#888888]',
                   )}
                   onClick={() => {
                     onChange(opt);

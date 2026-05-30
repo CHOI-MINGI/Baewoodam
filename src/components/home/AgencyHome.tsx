@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,7 +13,7 @@ import { AGE_RANGE_MAP } from '@/constants';
 import type { ActorListItem } from '@/types';
 
 const DEFAULT_FILTERS: FilterValues = {
-  ageRange: '', gender: '', location: '', minFilmo: 0, maxFilmo: 30,
+  ageRange: '', gender: '', location: '', minFilmo: 0, maxFilmo: 999,
 };
 
 const FILTER_CHIPS = [
@@ -43,7 +43,6 @@ export default function AgencyHome() {
     if (f.gender) params.set('gender', f.gender);
     if (f.location) params.set('location', f.location);
     if (f.minFilmo > 0) params.set('minFilmo', String(f.minFilmo));
-    if (f.maxFilmo < 30) params.set('maxFilmo', String(f.maxFilmo));
     const res = await fetch(`/api/actors?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
@@ -66,8 +65,7 @@ export default function AgencyHome() {
       case 'gender': return filters.gender || '성별';
       case 'location': return filters.location || '활동 지역';
       case 'filmCount':
-        return filters.minFilmo > 0 || filters.maxFilmo < 30
-          ? `필모 ${filters.minFilmo}~${filters.maxFilmo}개` : '필모 수';
+        return filters.minFilmo > 0 ? `${filters.minFilmo}편 이상` : '필모 수';
     }
   };
 
@@ -76,7 +74,7 @@ export default function AgencyHome() {
       case 'ageRange': return !!filters.ageRange;
       case 'gender': return !!filters.gender;
       case 'location': return !!filters.location;
-      case 'filmCount': return filters.minFilmo > 0 || filters.maxFilmo < 30;
+      case 'filmCount': return filters.minFilmo > 0;
     }
   };
 
@@ -85,14 +83,12 @@ export default function AgencyHome() {
     fetchActors(DEFAULT_FILTERS);
   };
 
-  const prev = () => setCurrent((c) => (c > 0 ? c - 1 : recommended.length - 1));
-  const next = () => setCurrent((c) => (c < recommended.length - 1 ? c + 1 : 0));
 
   return (
     <div className="bg-[#F5F5F5] min-h-screen">
       {/* 헤더 */}
       <div className="flex items-center justify-between px-8 pt-8 pb-4">
-        <h1 className="text-[22px] font-bold text-[#1A1A1A]">배우 검색</h1>
+        <h1 className="text-[22px] font-bold text-[#1A1A1A]">홈</h1>
         <button><Search size={22} className="text-[#1A1A1A]" /></button>
       </div>
 
@@ -116,66 +112,130 @@ export default function AgencyHome() {
           ))}
         </div>
 
-        {/* 추천 배우 (스와이프) */}
+        {/* 추천 배우 — 3D 캐러셀 */}
         {recommended.length > 0 && (
-          <div className="bg-white rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-2xl pt-5 pb-6 overflow-hidden">
+            <div className="flex items-center justify-between px-6 mb-4">
               <h2 className="text-[18px] font-bold text-[#1A1A1A]">✨ 추천 배우</h2>
               <span className="text-[13px] text-[#888888]">{current + 1} / {recommended.length}</span>
             </div>
 
-            <div className="relative flex items-center justify-center">
+            {/* 3D 원근감 캐러셀 */}
+            <div className="relative" style={{ perspective: '1000px', height: '370px' }}>
+              {recommended.map((actor, i) => {
+                const offset = i - current;
+                if (Math.abs(offset) > 1) return null;
+
+                const isCenter = offset === 0;
+                const dir = offset > 0 ? 1 : -1;
+
+                const cardStyle: React.CSSProperties = {
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  width: '250px',
+                  height: '333px',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.45s ease, box-shadow 0.45s ease',
+                  ...(isCenter
+                    ? {
+                        transform: 'translate(-50%, -50%) rotateY(0deg) scale(1)',
+                        zIndex: 10,
+                        opacity: 1,
+                        boxShadow: '0 24px 64px rgba(0,0,0,0.32)',
+                        cursor: 'pointer',
+                      }
+                    : {
+                        transform: `translate(calc(-50% + ${dir * 245}px), -50%) rotateY(${-dir * 42}deg) scale(0.80)`,
+                        zIndex: 5,
+                        opacity: 0.72,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                        cursor: 'pointer',
+                      }
+                  ),
+                };
+
+                const inner = (
+                  <div className="relative w-full h-full">
+                    {actor.image ? (
+                      <Image
+                        src={actor.image}
+                        alt={actor.name ?? ''}
+                        fill
+                        className="object-cover object-top"
+                        priority={isCenter}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-[#444] to-[#888]" />
+                    )}
+                    {!isCenter && <div className="absolute inset-0 bg-black/30" />}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                  </div>
+                );
+
+                return isCenter ? (
+                  <Link key={actor.id} href={`/actors/${actor.id}`} style={cardStyle}>{inner}</Link>
+                ) : (
+                  <div key={actor.id} style={cardStyle} onClick={() => setCurrent(i)}>{inner}</div>
+                );
+              })}
+
               {/* 이전 버튼 */}
               <button
-                onClick={prev}
-                className="absolute left-0 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50"
+                onClick={() => setCurrent(c => Math.max(0, c - 1))}
+                disabled={current === 0}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center disabled:opacity-25 transition-opacity hover:bg-white"
               >
-                <ChevronLeft size={20} className="text-[#1A1A2E]" />
+                <ChevronLeft size={20} className="text-[#1A1A1A]" />
               </button>
-
-              {/* 카드 */}
-              <Link href={`/actors/${recommended[current].id}`} className="block">
-                <div className="relative w-[280px] h-[380px] rounded-2xl overflow-hidden shadow-xl">
-                  {recommended[current].image ? (
-                    <Image src={recommended[current].image!} alt={recommended[current].name ?? ''} fill className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-[#999] to-[#ccc]" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-5 text-center">
-                    <p className="text-white text-[22px] font-bold">{recommended[current].name}</p>
-                    <p className="text-white/80 text-[13px] mt-1">
-                      {recommended[current].ageRange ? (AGE_RANGE_MAP as any)[recommended[current].ageRange!] : ''} · 필모 {recommended[current].filmographyCount}편
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 justify-center mt-3">
-                      {recommended[current].skills.slice(0, 3).map((s) => (
-                        <span key={s} className="text-[11px] px-2.5 py-1 bg-white/20 text-white rounded-full backdrop-blur-sm">{s}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Link>
 
               {/* 다음 버튼 */}
               <button
-                onClick={next}
-                className="absolute right-0 z-10 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50"
+                onClick={() => setCurrent(c => Math.min(recommended.length - 1, c + 1))}
+                disabled={current === recommended.length - 1}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center disabled:opacity-25 transition-opacity hover:bg-white"
               >
-                <ChevronRight size={20} className="text-[#1A1A2E]" />
+                <ChevronRight size={20} className="text-[#1A1A1A]" />
               </button>
             </div>
 
-            {/* 점 인디케이터 */}
-            <div className="flex gap-1.5 justify-center mt-4">
-              {recommended.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrent(i)}
-                  className={cn(
-                    'h-1.5 rounded-full transition-all',
-                    i === current ? 'w-5 bg-[#E53935]' : 'w-1.5 bg-[#DDD]',
+            {/* 현재 배우 정보 */}
+            {recommended[current] && (
+              <Link href={`/actors/${recommended[current].id}`} className="block">
+                <div className="text-center mt-5 px-6">
+                  <p className="text-[20px] font-bold text-[#1A1A1A]">{recommended[current].name}</p>
+                  <p className="text-[13px] text-[#888888] mt-1">
+                    {recommended[current].ageRange ? (AGE_RANGE_MAP as any)[recommended[current].ageRange!] : '나이 미상'} · 필모 {recommended[current].filmographyCount}편
+                  </p>
+                  {recommended[current].skills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 justify-center mt-3">
+                      {recommended[current].skills.slice(0, 3).map((s) => (
+                        <span key={s} className="text-[12px] px-3 py-1 bg-[#F0F0F0] text-[#555555] rounded-full">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                />
+                </div>
+              </Link>
+            )}
+
+            {/* 아바타 스트립 */}
+            <div className="flex gap-2 justify-center mt-4 px-6 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {recommended.map((actor, i) => (
+                <button key={actor.id} onClick={() => setCurrent(i)} className="flex-shrink-0">
+                  <div className={cn(
+                    'w-9 h-9 rounded-full overflow-hidden border-2 transition-all',
+                    i === current ? 'border-[#E53935] scale-110' : 'border-transparent opacity-60',
+                  )}>
+                    {actor.image ? (
+                      <Image src={actor.image} alt={actor.name ?? ''} width={36} height={36} className="object-cover w-full h-full" />
+                    ) : (
+                      <div className="w-full h-full bg-[#D9D9D9]" />
+                    )}
+                  </div>
+                </button>
               ))}
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Briefcase, User, Bell, Settings, Clapperboard, LogOut } from 'lucide-react';
+import { Home, Briefcase, User, Bell, Settings, Clapperboard, LogOut, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut } from 'next-auth/react';
 
@@ -14,8 +14,9 @@ interface TabItem {
 
 const ACTOR_TABS: TabItem[] = [
   { label: '홈', href: '/home', icon: Home },
+  { label: '작품 관리', href: '/works', icon: Film },
   { label: '캐스팅', href: '/casting', icon: Briefcase },
-  { label: '마이페이지', href: '/mypage', icon: User },
+  { label: '프로필/포트폴리오', href: '/mypage', icon: User },
   { label: '알림', href: '/notifications', icon: Bell },
   { label: '설정', href: '/settings', icon: Settings },
 ];

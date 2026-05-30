@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Plus, Pencil, X, Play } from 'lucide-react';
+import { Plus, Pencil, X, Play, Star } from 'lucide-react';
 import type { ShowreelItem } from '@/types';
 
 export default function ShowreelManagePage() {
@@ -22,6 +22,16 @@ export default function ShowreelManagePage() {
     if (!confirm('삭제하시겠어요?')) return;
     await fetch(`/api/showreel/${id}`, { method: 'DELETE' });
     setItems((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleSetFeatured = async (id: string, title: string) => {
+    if (!confirm(`"${title}"을(를) 대표영상으로 설정할까요?`)) return;
+    await fetch(`/api/showreel/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isFeatured: true }),
+    });
+    setItems((prev) => prev.map((r) => ({ ...r, isFeatured: r.id === id })));
   };
 
   const formatDuration = (sec: number | null) => {
@@ -62,9 +72,13 @@ export default function ShowreelManagePage() {
         ) : (
           <div className="flex flex-col gap-4">
             {items.map((reel) => (
-              <div key={reel.id} className="rounded-xl overflow-hidden border border-[#F0F0F0]">
-                {/* 썸네일 */}
-                <div className="relative w-full aspect-video bg-[#1A1A1A]">
+              <div key={reel.id} className={`rounded-xl overflow-hidden border-2 transition-colors ${reel.isFeatured ? 'border-[#E53935]' : 'border-[#F0F0F0]'}`}>
+                {/* 썸네일 — 클릭 시 대표영상 설정 */}
+                <button
+                  className="relative w-full aspect-video bg-[#1A1A1A] block"
+                  onClick={() => !reel.isFeatured && handleSetFeatured(reel.id, reel.title)}
+                  title={reel.isFeatured ? '현재 대표영상' : '클릭하여 대표영상으로 설정'}
+                >
                   {reel.thumbnailUrl ? (
                     <Image
                       src={reel.thumbnailUrl}
@@ -80,7 +94,20 @@ export default function ShowreelManagePage() {
                       <Play size={18} className="text-[#1A1A1A] ml-0.5" />
                     </div>
                   </div>
-                </div>
+                  {/* 대표영상 배지 */}
+                  {reel.isFeatured && (
+                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-[#E53935] text-white text-[11px] font-semibold px-2 py-1 rounded-full">
+                      <Star size={10} fill="white" />
+                      대표영상
+                    </div>
+                  )}
+                  {/* 미설정 상태 안내 */}
+                  {!reel.isFeatured && (
+                    <div className="absolute bottom-2 right-2 text-[11px] text-white/60 bg-black/40 px-2 py-0.5 rounded-full">
+                      탭하여 설정
+                    </div>
+                  )}
+                </button>
 
                 {/* 정보 + 액션 */}
                 <div className="px-3 py-2.5 flex items-start justify-between gap-2">

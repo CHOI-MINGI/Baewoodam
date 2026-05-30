@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DrumrollPicker from '@/components/shared/DrumrollPicker';
 import { POSITION_OPTIONS } from '@/constants';
 
-export default function AgencySignupPage() {
+export default function AgencyProfileEditPage() {
   const router = useRouter();
 
   const [name, setName] = useState('');
@@ -16,10 +16,18 @@ export default function AgencySignupPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const isReady = name.trim() && company.trim() && position;
+  useEffect(() => {
+    fetch('/api/users/me')
+      .then((r) => r.json())
+      .then((u) => {
+        if (!u) return;
+        setName(u.name ?? '');
+        setCompany(u.agencyProfile?.companyName ?? '');
+        setPosition(u.agencyProfile?.position ?? '');
+      });
+  }, []);
 
-  const handleNext = async () => {
-    if (!isReady) return;
+  const handleSave = async () => {
     setLoading(true);
     await fetch('/api/users/me', {
       method: 'PATCH',
@@ -27,21 +35,20 @@ export default function AgencySignupPage() {
       body: JSON.stringify({ name, companyName: company, position }),
     });
     setLoading(false);
-    router.push('/signup/complete');
+    router.back();
   };
 
   return (
-    <div className="flex flex-col min-h-screen px-6 pt-4 pb-8">
-      {/* 헤더 */}
-      <div className="flex items-center gap-3 mb-10">
+    <div className="flex flex-col min-h-screen px-5 pb-8">
+      <div className="flex items-center gap-3 py-3 mb-6">
         <button onClick={() => router.back()} className="text-xl text-[#1A1A1A]">←</button>
-        <span className="text-[16px] font-semibold text-[#1A1A1A]">회원가입</span>
+        <h1 className="text-[16px] font-semibold text-[#1A1A1A]">프로필 편집</h1>
       </div>
 
-      <div className="flex flex-col gap-6 flex-1">
+      <div className="flex flex-col gap-5 flex-1">
         {/* 이름 */}
         <div>
-          <label className="text-[13px] text-[#1A1A1A] font-medium mb-1 block">이름</label>
+          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">이름</label>
           <div className="flex items-center border-b border-[#E0E0E0] pb-2 gap-2">
             <input
               value={name}
@@ -55,7 +62,7 @@ export default function AgencySignupPage() {
 
         {/* 소속 */}
         <div>
-          <label className="text-[13px] text-[#1A1A1A] font-medium mb-1 block">소속</label>
+          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">소속</label>
           <div className="flex items-center border-b border-[#E0E0E0] pb-2 gap-2">
             <input
               value={company}
@@ -69,7 +76,7 @@ export default function AgencySignupPage() {
 
         {/* 직무 */}
         <div>
-          <label className="text-[13px] text-[#1A1A1A] font-medium mb-1 block">직무</label>
+          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">직무</label>
           <button
             onClick={() => setPickerOpen(true)}
             className="w-full flex items-center justify-between border-b border-[#E0E0E0] pb-2"
@@ -82,20 +89,16 @@ export default function AgencySignupPage() {
         </div>
       </div>
 
-      <div className="mt-auto pt-8">
-        <button
-          disabled={!isReady || loading}
-          onClick={handleNext}
-          className={cn(
-            'w-full h-[52px] rounded-full text-[15px] font-semibold transition-colors',
-            isReady && !loading
-              ? 'bg-[#1A1A2E] text-white'
-              : 'bg-[#D9D9D9] text-[#999999]',
-          )}
-        >
-          {loading ? '저장 중...' : '다음'}
-        </button>
-      </div>
+      <button
+        disabled={loading}
+        onClick={handleSave}
+        className={cn(
+          'w-full h-[52px] rounded-full text-[15px] font-semibold mt-8 transition-colors',
+          !loading ? 'bg-[#1A1A2E] text-white' : 'bg-[#D9D9D9] text-[#999999]',
+        )}
+      >
+        {loading ? '저장 중...' : '저장하기'}
+      </button>
 
       <DrumrollPicker
         open={pickerOpen}

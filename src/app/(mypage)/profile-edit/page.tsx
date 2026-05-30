@@ -6,28 +6,34 @@ import Image from 'next/image';
 import { Camera, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DrumrollPicker from '@/components/shared/DrumrollPicker';
-import { AGE_RANGE_OPTIONS, LOCATION_OPTIONS, POSITION_OPTIONS } from '@/constants';
+import ImageCropper from '@/components/shared/ImageCropper';
+import { AGE_RANGE_OPTIONS, LOCATION_OPTIONS } from '@/constants';
 
 const AGE_MAP: Record<string, string> = {
   '10대': 'TEENS', '20대': 'TWENTIES', '30대': 'THIRTIES', '40대': 'FORTIES', '50대': 'FIFTIES',
 };
+const GENDER_MAP: Record<string, string> = { 남성: 'MALE', 여성: 'FEMALE' };
+const GENDER_REV: Record<string, string> = { MALE: '남성', FEMALE: '여성' };
 
 export default function ProfileEditPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
   const [position, setPosition] = useState('');
   const [ageRange, setAgeRange] = useState('');
+  const [gender, setGender] = useState('');
   const [contactableTime, setContactableTime] = useState('');
   const [contactMemo, setContactMemo] = useState('');
 
   const [locationOpen, setLocationOpen] = useState(false);
-  const [positionOpen, setPositionOpen] = useState(false);
   const [ageOpen, setAgeOpen] = useState(false);
+  const [genderOpen, setGenderOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -45,6 +51,7 @@ export default function ProfileEditPage() {
           const rev: Record<string, string> = { TEENS: '10대', TWENTIES: '20대', THIRTIES: '30대', FORTIES: '40대', FIFTIES: '50대' };
           setAgeRange(rev[u.actorProfile.ageRange] ?? '');
         }
+        if (u.actorProfile?.gender) setGender(GENDER_REV[u.actorProfile.gender] ?? '');
         if (u.agencyProfile?.position) setPosition(u.agencyProfile.position);
       });
   }, []);
@@ -52,11 +59,29 @@ export default function ProfileEditPage() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPhoto(URL.createObjectURL(file));
+    e.target.value = '';
+    setCropSrc(URL.createObjectURL(file));
+  };
+
+  const handleCropConfirm = (blob: Blob) => {
+    const croppedFile = new File([blob], 'profile.jpg', { type: 'image/jpeg' });
+    setPhotoFile(croppedFile);
+    setPhoto(URL.createObjectURL(blob));
+    setCropSrc(null);
   };
 
   const handleSave = async () => {
     setLoading(true);
+
+    let imageUrl: string | undefined;
+    if (photoFile) {
+      const form = new FormData();
+      form.append('file', photoFile);
+      form.append('bucket', 'profiles');
+      const up = await fetch('/api/upload/image', { method: 'POST', body: form });
+      if (up.ok) imageUrl = (await up.json()).url;
+    }
+
     await fetch('/api/users/me', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -67,13 +92,24 @@ export default function ProfileEditPage() {
         contactableTime,
         contactMemo,
         ...(ageRange && { ageRange: AGE_MAP[ageRange] }),
+        ...(gender && { gender: GENDER_MAP[gender] }),
         ...(position && { position }),
-        ...(photo && { image: photo }),
+        ...(imageUrl && { image: imageUrl }),
       }),
     });
     setLoading(false);
     router.push('/mypage');
   };
+
+  if (cropSrc) {
+    return (
+      <ImageCropper
+        imageSrc={cropSrc}
+        onConfirm={handleCropConfirm}
+        onCancel={() => setCropSrc(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen px-5 pb-8">
@@ -114,20 +150,22 @@ export default function ProfileEditPage() {
           </button>
         </div>
 
-        {/* 소속 */}
-        <div>
-          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">소속</label>
-          <button onClick={() => setPositionOpen(true)} className="w-full flex justify-between border-b border-[#E0E0E0] pb-2">
-            <span className={cn('text-[15px]', position ? 'text-[#1A1A1A]' : 'text-[#D9D9D9]')}>{position || '프리랜서'}</span>
-            <span className="text-[#888888]">∨</span>
-          </button>
-        </div>
+        <Field label="소속" value={position} onChange={setPosition} placeholder="소속사명 입력 (없으면 프리랜서)" clearable />
 
         {/* 나이대 */}
         <div>
           <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">나이대</label>
           <button onClick={() => setAgeOpen(true)} className="w-full flex justify-between border-b border-[#E0E0E0] pb-2">
             <span className={cn('text-[15px]', ageRange ? 'text-[#1A1A1A]' : 'text-[#D9D9D9]')}>{ageRange || '나이대 선택'}</span>
+            <span className="text-[#888888]">∨</span>
+          </button>
+        </div>
+
+        {/* 성별 */}
+        <div>
+          <label className="text-[13px] font-medium text-[#1A1A1A] mb-1 block">성별</label>
+          <button onClick={() => setGenderOpen(true)} className="w-full flex justify-between border-b border-[#E0E0E0] pb-2">
+            <span className={cn('text-[15px]', gender ? 'text-[#1A1A1A]' : 'text-[#D9D9D9]')}>{gender || '성별 선택'}</span>
             <span className="text-[#888888]">∨</span>
           </button>
         </div>
@@ -148,8 +186,8 @@ export default function ProfileEditPage() {
       </button>
 
       <DrumrollPicker open={locationOpen} onClose={() => setLocationOpen(false)} title="활동 지역" options={[...LOCATION_OPTIONS]} value={location} onChange={setLocation} />
-      <DrumrollPicker open={positionOpen} onClose={() => setPositionOpen(false)} title="소속" options={['프리랜서', ...POSITION_OPTIONS]} value={position} onChange={setPosition} />
       <DrumrollPicker open={ageOpen} onClose={() => setAgeOpen(false)} title="나이대" options={[...AGE_RANGE_OPTIONS].reverse()} value={ageRange} onChange={setAgeRange} />
+      <DrumrollPicker open={genderOpen} onClose={() => setGenderOpen(false)} title="성별" options={['남성', '여성']} value={gender} onChange={setGender} />
     </div>
   );
 }

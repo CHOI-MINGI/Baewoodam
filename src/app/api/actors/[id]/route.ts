@@ -8,11 +8,15 @@ export async function GET(
   const { id } = await params;
 
   const user = await db.user.findUnique({
-    where: { id, roleType: 'ACTOR', isActive: true },
+    where: { id, roleType: 'ACTOR', isActive: true, isPublic: true },
     include: {
       actorProfile: true,
       filmographies: { orderBy: [{ year: 'desc' }, { sortOrder: 'asc' }] },
       showreels: { orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }] },
+      works: {
+        where: { isFeatured: true, isPublic: true },
+        orderBy: { createdAt: 'desc' },
+      },
       _count: { select: { filmographies: true, showreels: true } },
     },
   });
@@ -37,7 +41,9 @@ export async function GET(
     publicPortfolioUrl: user.actorProfile?.publicPortfolioUrl ?? null,
     filmographyCount: user._count.filmographies,
     showreelCount: user._count.showreels,
+    coverImage: user.coverImage,
     filmographies: user.filmographies,
     showreels: user.showreels,
+    featuredWorks: user.works,
   });
 }

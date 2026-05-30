@@ -15,16 +15,45 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
   EXPIRED: { label: '만료', className: 'bg-[#F5F5F5] text-[#888888]' },
 };
 
+type ActivityItem = { icon: string; title: string; sub: string; date: string };
+
+interface FeaturedWork {
+  id: string;
+  title: string;
+  youtubeUrl: string;
+  thumbnailUrl: string | null;
+  genre: string | null;
+  year: number | null;
+  myRole: string | null;
+  channelTitle: string | null;
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 60) return min <= 0 ? '방금 전' : `${min}분 전`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}시간 전`;
+  const day = Math.floor(hour / 24);
+  if (day < 7) return `${day}일 전`;
+  const week = Math.floor(day / 7);
+  if (week < 5) return `${week}주 전`;
+  const month = Math.floor(day / 30);
+  return `${month}달 전`;
+}
+
 export default function ActorHome() {
-  const [actor, setActor] = useState<(ActorDetail & { coverImage?: string | null }) | null>(null);
+  const [actor, setActor] = useState<(ActorDetail & { coverImage?: string | null; featuredWorks?: FeaturedWork[] }) | null>(null);
   const [offers, setOffers] = useState<CastingOfferWithDetails[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/users/me').then(r => r.json()),
       fetch('/api/casting?type=received').then(r => r.json()),
-    ]).then(async ([user, offersData]) => {
+      fetch('/api/users/activity').then(r => r.json()),
+    ]).then(async ([user, offersData, activityData]) => {
       if (user?.id) {
         const res = await fetch(`/api/actors/${user.id}`);
         if (res.ok) {
@@ -33,6 +62,7 @@ export default function ActorHome() {
         }
       }
       setOffers(offersData ?? []);
+      setActivities(Array.isArray(activityData) ? activityData : []);
       setLoading(false);
     });
   }, []);
@@ -69,7 +99,7 @@ export default function ActorHome() {
   return (
     <div className="bg-[#F5F5F5] min-h-screen">
       <div className="flex items-center justify-between px-8 pt-8 pb-4">
-        <h1 className="text-[22px] font-bold text-[#1A1A1A]">마이페이지</h1>
+        <h1 className="text-[22px] font-bold text-[#1A1A1A]">홈</h1>
         <Link href="/settings"><Settings size={22} className="text-[#1A1A1A]" /></Link>
       </div>
 
@@ -78,11 +108,9 @@ export default function ActorHome() {
         {/* 상단 2열: 프로필 카드 + 요약 */}
         <div className="grid grid-cols-[1fr_320px] gap-4">
           <div className="relative rounded-2xl overflow-hidden bg-[#1A1A1A]" style={{ minHeight: '220px' }}>
-            {actor?.coverImage ? (
+            {actor?.coverImage && (
               <Image src={actor.coverImage} alt="" fill className="object-cover object-center" />
-            ) : actor?.image ? (
-              <Image src={actor.image} alt="" fill className="object-cover object-center" />
-            ) : null}
+            )}
             <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 p-8 text-white">
@@ -104,9 +132,6 @@ export default function ActorHome() {
                 <Link href="/profile-edit" className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/60 text-white text-[13px]">
                   <Pencil size={12} /> 수정하기
                 </Link>
-                <button className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#E53935] text-white text-[13px]">
-                  ♥ 팬하기 추가하기
-                </button>
               </div>
             </div>
           </div>
@@ -178,22 +203,22 @@ export default function ActorHome() {
         {/* 최근 활동 */}
         <div className="bg-white rounded-2xl p-6">
           <h2 className="text-[18px] font-bold text-[#1A1A1A] mb-5">최근 활동</h2>
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { icon: '🎬', title: '필모그래피 등록', sub: '서울의 봄 · 2일 전' },
-              { icon: '🎥', title: '쇼릴 업로드', sub: '2024 Actor Showreel · 3일 전' },
-              { icon: '✅', title: '캐스팅 제안 수락', sub: '눈물의 여왕 2 · 5일 전' },
-              { icon: '👤', title: '프로필 수정', sub: '스킬 및 특기 · 1주 전' },
-            ].map((item, i) => (
-              <div key={i} className="flex flex-col items-center text-center gap-2 p-4 border border-[#F0F0F0] rounded-2xl">
-                <div className="w-12 h-12 rounded-2xl bg-[#FFF0F0] flex items-center justify-center text-[22px]">
-                  {item.icon}
+          {activities.length === 0 ? (
+            <p className="text-[14px] text-[#888888]">아직 활동 내역이 없어요.</p>
+          ) : (
+            <div className="grid grid-cols-4 gap-4">
+              {activities.map((item, i) => (
+                <div key={i} className="flex flex-col items-center text-center gap-2 p-4 border border-[#F0F0F0] rounded-2xl">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FFF0F0] flex items-center justify-center text-[22px]">
+                    {item.icon}
+                  </div>
+                  <p className="text-[13px] font-semibold text-[#1A1A1A]">{item.title}</p>
+                  <p className="text-[11px] text-[#888888] line-clamp-1">{item.sub}</p>
+                  <p className="text-[10px] text-[#BBBBBB]">{timeAgo(item.date)}</p>
                 </div>
-                <p className="text-[13px] font-semibold text-[#1A1A1A]">{item.title}</p>
-                <p className="text-[11px] text-[#888888]">{item.sub}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 필모그래피 + 스킬 2열 */}
@@ -249,32 +274,59 @@ export default function ActorHome() {
         </div>
 
         {/* 대표 영상 */}
-        <div className="bg-white rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[18px] font-bold text-[#1A1A1A]">대표 영상</h2>
-            <Link href="/showreel" className="text-[13px] text-[#E53935]">전체보기 →</Link>
-          </div>
-          {(actor?.showreels ?? []).length === 0 ? (
-            <p className="text-[#888888] text-[14px]">등록된 영상이 없어요.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {(actor?.showreels ?? []).slice(0, 2).map((reel) => (
-                <Link key={reel.id} href={`/showreel/${reel.id}`} className="block group">
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1A1A1A]">
-                    <video src={reel.videoUrl} preload="metadata" className="w-full h-full object-cover" playsInline />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                        <Play size={18} className="text-[#1A1A1A] ml-0.5" />
+        {(() => {
+          const featuredWorks = actor?.featuredWorks ?? [];
+          const featuredReel = (actor?.showreels ?? []).find(r => r.isFeatured);
+          const hasAny = featuredWorks.length > 0 || !!featuredReel;
+          return (
+            <div className="bg-white rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-[18px] font-bold text-[#1A1A1A]">대표 영상</h2>
+                <Link href="/works" className="text-[13px] text-[#E53935]">관리하기 →</Link>
+              </div>
+              {!hasAny ? (
+                <p className="text-[#888888] text-[14px]">등록된 대표 영상이 없어요.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  {featuredWorks.map((work) => (
+                    <a key={work.id} href={work.youtubeUrl} target="_blank" rel="noopener noreferrer" className="block group">
+                      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1A1A1A]">
+                        {work.thumbnailUrl ? (
+                          <Image src={work.thumbnailUrl} alt={work.title} fill className="object-cover group-hover:opacity-90 transition-opacity" />
+                        ) : (
+                          <div className="w-full h-full bg-[#2A2A2A]" />
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+                          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                            <Play size={18} className="text-[#1A1A1A] ml-0.5" />
+                          </div>
+                        </div>
+                        <span className="absolute top-2 left-2 bg-[#E53935] text-white text-[10px] px-2 py-0.5 rounded-full font-medium">대표</span>
                       </div>
-                    </div>
-                  </div>
-                  <p className="text-[14px] font-medium text-[#1A1A1A] mt-2">{reel.title}</p>
-                  {reel.duration && <p className="text-[12px] text-[#888888]">{formatDuration(reel.duration)}</p>}
-                </Link>
-              ))}
+                      <p className="text-[14px] font-medium text-[#1A1A1A] mt-2 line-clamp-1">{work.title}</p>
+                      {work.year && <p className="text-[12px] text-[#888888]">{work.year}</p>}
+                    </a>
+                  ))}
+                  {featuredReel && (
+                    <Link href={`/showreel/${featuredReel.id}`} className="block group">
+                      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#1A1A1A]">
+                        <video src={featuredReel.videoUrl} preload="metadata" className="w-full h-full object-cover" playsInline />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+                          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                            <Play size={18} className="text-[#1A1A1A] ml-0.5" />
+                          </div>
+                        </div>
+                        <span className="absolute top-2 left-2 bg-[#1A1A2E] text-white text-[10px] px-2 py-0.5 rounded-full font-medium">쇼릴</span>
+                      </div>
+                      <p className="text-[14px] font-medium text-[#1A1A1A] mt-2 line-clamp-1">{featuredReel.title}</p>
+                      {featuredReel.duration && <p className="text-[12px] text-[#888888]">{formatDuration(featuredReel.duration)}</p>}
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
       </div>
     </div>

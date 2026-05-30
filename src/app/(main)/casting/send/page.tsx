@@ -3,10 +3,25 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { ChevronLeft, Check, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Calendar, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AGE_RANGE_MAP } from '@/constants';
+import FilterBottomSheet, {
+  FilterType,
+  FilterValues,
+} from '@/components/shared/FilterBottomSheet';
 import type { ActorListItem, ProjectItem, ActorDetail } from '@/types';
+
+const DEFAULT_ACTOR_FILTERS: FilterValues = {
+  ageRange: '', gender: '', location: '', minFilmo: 0, maxFilmo: 999,
+};
+
+const ACTOR_FILTER_CHIPS: { key: FilterType }[] = [
+  { key: 'ageRange' },
+  { key: 'gender' },
+  { key: 'location' },
+  { key: 'filmCount' },
+];
 
 export default function CastingSendPage() {
   const router = useRouter();
@@ -15,7 +30,6 @@ export default function CastingSendPage() {
   const initProjectId = params.get('projectId');
   const initCharacterId = params.get('characterId');
 
-  // 진입 모드: 배우가 정해져있으면 'fromActor', 아니면 'fromCharacter'
   const mode: 'fromActor' | 'fromCharacter' = initActorId ? 'fromActor' : 'fromCharacter';
 
   // 공통 상태
@@ -28,15 +42,39 @@ export default function CastingSendPage() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
 
-  // fromActor 모드: 배우 정보
+  // fromActor 모드
   const [actor, setActor] = useState<ActorDetail | null>(null);
-  // fromCharacter 모드: 배우 선택
+  // fromCharacter 모드
   const [actors, setActors] = useState<ActorListItem[]>([]);
   const [selectedActor, setSelectedActor] = useState<ActorListItem | null>(null);
   const [step, setStep] = useState<1 | 2>(mode === 'fromCharacter' ? 1 : 2);
 
+  // 캐러셀 + 필터 상태
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const [actorFilters, setActorFilters] = useState<FilterValues>(DEFAULT_ACTOR_FILTERS);
+  const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
+  const [actorQuery, setActorQuery] = useState('');
+  const [actorsLoading, setActorsLoading] = useState(false);
+
   const selectedProject = projects.find((p) => p.id === projectId);
   const characters = selectedProject?.characters ?? [];
+
+  const fetchActorList = async (q: string, f: FilterValues) => {
+    setActorsLoading(true);
+    const p = new URLSearchParams();
+    if (q.trim()) p.set('q', q.trim());
+    if (f.ageRange) p.set('ageRange', f.ageRange);
+    if (f.gender) p.set('gender', f.gender);
+    if (f.location) p.set('location', f.location);
+    if (f.minFilmo > 0) p.set('minFilmo', String(f.minFilmo));
+    const res = await fetch(`/api/actors?${p.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      setActors(data.actors ?? []);
+      setCarouselIdx(0);
+    }
+    setActorsLoading(false);
+  };
 
   useEffect(() => {
     fetch('/api/projects').then(r => r.json()).then(d => setProjects(d ?? []));
@@ -44,12 +82,11 @@ export default function CastingSendPage() {
     if (mode === 'fromActor' && initActorId) {
       fetch(`/api/actors/${initActorId}`).then(r => r.json()).then(setActor);
     } else {
-      fetch('/api/actors/recommended').then(r => r.json()).then(d => setActors(d.actors ?? []));
+      fetchActorList('', DEFAULT_ACTOR_FILTERS);
     }
   }, []);
 
   const targetActorId = mode === 'fromActor' ? initActorId : selectedActor?.id;
-
   const isReady = targetActorId && projectId && characterId && period.trim() && location.trim();
 
   const handleSubmit = async () => {
@@ -77,6 +114,33 @@ export default function CastingSendPage() {
     }
   };
 
+  const handleActorFilterChange = (partial: Partial<FilterValues>) => {
+    const next = { ...actorFilters, ...partial };
+    setActorFilters(next);
+    fetchActorList(actorQuery, next);
+  };
+
+  const isActorFilterActive = (key: FilterType) => {
+    switch (key) {
+      case 'ageRange': return !!actorFilters.ageRange;
+      case 'gender': return !!actorFilters.gender;
+      case 'location': return !!actorFilters.location;
+      case 'filmCount': return actorFilters.minFilmo > 0;
+    }
+  };
+
+  const actorChipLabel = (key: FilterType) => {
+    switch (key) {
+      case 'ageRange': return actorFilters.ageRange || '나이대';
+      case 'gender': return actorFilters.gender || '성별';
+      case 'location': return actorFilters.location || '활동 지역';
+      case 'filmCount':
+        return actorFilters.minFilmo > 0 ? `${actorFilters.minFilmo}편 이상` : '필모 수';
+    }
+  };
+
+  const currentActor = actors[carouselIdx] ?? null;
+
   return (
     <div className="bg-[#F5F5F5] min-h-screen">
       {/* 헤더 */}
@@ -94,53 +158,202 @@ export default function CastingSendPage() {
 
       <div className="max-w-[1000px] mx-auto px-8 pb-12">
 
-        {/* ===== fromCharacter STEP 1: 배우 선택 ===== */}
+        {/* ===== fromCharacter STEP 1: 배우 선택 (3D 캐러셀) ===== */}
         {mode === 'fromCharacter' && step === 1 && (
           <>
-            <p className="text-[14px] text-[#888888] mb-5">제안을 보낼 배우를 선택하세요. (추천순)</p>
-            {actors.length === 0 ? (
-              <div className="text-center py-20 text-[#888888]">등록된 배우가 없어요.</div>
+            {/* 검색바 */}
+            <div className="flex items-center gap-2 bg-white rounded-2xl px-5 h-[50px] border border-[#E0E0E0] mb-3">
+              <Search size={18} className="text-[#888888] flex-shrink-0" />
+              <input
+                value={actorQuery}
+                onChange={(e) => setActorQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchActorList(actorQuery, actorFilters)}
+                placeholder="이름, 스킬로 배우를 찾아보세요"
+                className="flex-1 bg-transparent text-[15px] text-[#1A1A1A] placeholder:text-[#BBBBBB] outline-none"
+              />
+              {actorQuery && (
+                <button onClick={() => { setActorQuery(''); fetchActorList('', actorFilters); }}>
+                  <X size={16} className="text-[#888888]" />
+                </button>
+              )}
+            </div>
+
+            {/* 필터 칩 */}
+            <div className="flex gap-2 flex-wrap mb-5">
+              {ACTOR_FILTER_CHIPS.map(({ key }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveFilter(key)}
+                  className={cn(
+                    'px-4 py-2 rounded-full text-[13px] font-medium border transition-colors',
+                    isActorFilterActive(key)
+                      ? 'bg-[#E53935] text-white border-[#E53935]'
+                      : 'bg-white text-[#1A1A1A] border-[#E0E0E0]',
+                  )}
+                >
+                  {actorChipLabel(key)} {isActorFilterActive(key) ? '' : '∨'}
+                </button>
+              ))}
+            </div>
+
+            {/* 3D 캐러셀 */}
+            {actorsLoading ? (
+              <div className="bg-white rounded-2xl" style={{ height: '500px' }}>
+                <div className="h-full animate-pulse bg-[#F5F5F5] rounded-2xl" />
+              </div>
+            ) : actors.length === 0 ? (
+              <div className="bg-white rounded-2xl flex flex-col items-center justify-center py-20 gap-3">
+                <p className="text-[15px] text-[#888888]">조건에 맞는 배우가 없어요</p>
+                <button
+                  onClick={() => { setActorQuery(''); setActorFilters(DEFAULT_ACTOR_FILTERS); fetchActorList('', DEFAULT_ACTOR_FILTERS); }}
+                  className="px-5 py-2 rounded-full border border-[#E0E0E0] text-[13px]"
+                >
+                  필터 초기화
+                </button>
+              </div>
             ) : (
-              <div className="grid grid-cols-4 gap-4">
-                {actors.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => setSelectedActor(a)}
-                    className={cn(
-                      'text-left rounded-2xl overflow-hidden border-2 transition-all bg-white',
-                      selectedActor?.id === a.id ? 'border-[#E53935]' : 'border-transparent hover:border-[#E0E0E0]',
-                    )}
-                  >
-                    <div className="relative w-full aspect-[3/4] bg-[#F5F5F5]">
-                      {a.image ? <Image src={a.image} alt={a.name ?? ''} fill className="object-cover" /> : <div className="w-full h-full bg-[#D9D9D9]" />}
-                      {selectedActor?.id === a.id && (
-                        <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#E53935] flex items-center justify-center">
-                          <Check size={16} className="text-white" />
+              <div className="bg-white rounded-2xl pt-5 pb-6 overflow-hidden mb-5">
+                <div className="flex items-center justify-between px-6 mb-4">
+                  <p className="text-[15px] text-[#888888]">배우 {actors.length}명</p>
+                  <span className="text-[13px] text-[#888888]">{carouselIdx + 1} / {actors.length}</span>
+                </div>
+
+                {/* 3D 원근감 캐러셀 */}
+                <div className="relative" style={{ perspective: '1000px', height: '370px' }}>
+                  {actors.map((a, i) => {
+                    const offset = i - carouselIdx;
+                    if (Math.abs(offset) > 1) return null;
+
+                    const isCenter = offset === 0;
+                    const dir = offset > 0 ? 1 : -1;
+
+                    const cardStyle: React.CSSProperties = {
+                      position: 'absolute',
+                      left: '50%',
+                      top: '50%',
+                      width: '250px',
+                      height: '333px',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.45s ease, box-shadow 0.45s ease',
+                      ...(isCenter
+                        ? {
+                            transform: 'translate(-50%, -50%) rotateY(0deg) scale(1)',
+                            zIndex: 10,
+                            opacity: 1,
+                            boxShadow: '0 24px 64px rgba(0,0,0,0.32)',
+                            cursor: 'default',
+                          }
+                        : {
+                            transform: `translate(calc(-50% + ${dir * 245}px), -50%) rotateY(${-dir * 42}deg) scale(0.80)`,
+                            zIndex: 5,
+                            opacity: 0.72,
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                            cursor: 'pointer',
+                          }
+                      ),
+                    };
+
+                    return (
+                      <div
+                        key={a.id}
+                        style={cardStyle}
+                        onClick={() => { if (!isCenter) setCarouselIdx(i); }}
+                      >
+                        <div className="relative w-full h-full">
+                          {a.image ? (
+                            <Image src={a.image} alt={a.name ?? ''} fill className="object-cover object-top" priority={isCenter} />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-[#444] to-[#888]" />
+                          )}
+                          {!isCenter && <div className="absolute inset-0 bg-black/30" />}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                          {isCenter && (
+                            <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-[#E53935] flex items-center justify-center shadow">
+                              <Check size={16} className="text-white" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <p className="text-[14px] font-bold text-[#1A1A1A]">{a.name}</p>
-                      <p className="text-[12px] text-[#888888]">
-                        {a.ageRange ? (AGE_RANGE_MAP as any)[a.ageRange] : ''} · 필모 {a.filmographyCount}편
-                      </p>
-                    </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* 이전 버튼 */}
+                  <button
+                    onClick={() => setCarouselIdx(c => Math.max(0, c - 1))}
+                    disabled={carouselIdx === 0}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center disabled:opacity-25 transition-opacity hover:bg-white"
+                  >
+                    <ChevronLeft size={20} className="text-[#1A1A1A]" />
                   </button>
-                ))}
+
+                  {/* 다음 버튼 */}
+                  <button
+                    onClick={() => setCarouselIdx(c => Math.min(actors.length - 1, c + 1))}
+                    disabled={carouselIdx === actors.length - 1}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center disabled:opacity-25 transition-opacity hover:bg-white"
+                  >
+                    <ChevronRight size={20} className="text-[#1A1A1A]" />
+                  </button>
+                </div>
+
+                {/* 현재 배우 정보 */}
+                {currentActor && (
+                  <div className="text-center mt-5 px-6">
+                    <p className="text-[20px] font-bold text-[#1A1A1A]">{currentActor.name}</p>
+                    <p className="text-[13px] text-[#888888] mt-1">
+                      {currentActor.ageRange ? (AGE_RANGE_MAP as any)[currentActor.ageRange] : '나이 미상'} · 필모 {currentActor.filmographyCount}편
+                    </p>
+                    {currentActor.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 justify-center mt-3">
+                        {currentActor.skills.slice(0, 3).map((s) => (
+                          <span key={s} className="text-[12px] px-3 py-1 bg-[#F0F0F0] text-[#555555] rounded-full">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 아바타 스트립 */}
+                <div className="flex gap-2 justify-center mt-4 px-6 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                  {actors.map((a, i) => (
+                    <button key={a.id} onClick={() => setCarouselIdx(i)} className="flex-shrink-0">
+                      <div className={cn(
+                        'w-9 h-9 rounded-full overflow-hidden border-2 transition-all',
+                        i === carouselIdx ? 'border-[#E53935] scale-110' : 'border-transparent opacity-60',
+                      )}>
+                        {a.image ? (
+                          <Image src={a.image} alt={a.name ?? ''} width={36} height={36} className="object-cover w-full h-full" />
+                        ) : (
+                          <div className="w-full h-full bg-[#D9D9D9]" />
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-            <div className="mt-6">
-              <button
-                disabled={!selectedActor}
-                onClick={() => setStep(2)}
-                className={cn(
-                  'w-full h-[52px] rounded-full text-[15px] font-semibold transition-colors',
-                  selectedActor ? 'bg-[#1A1A2E] text-white' : 'bg-[#D9D9D9] text-[#999999]',
-                )}
-              >
-                {selectedActor ? `${selectedActor.name}에게 제안하기` : '배우를 선택하세요'}
-              </button>
-            </div>
+
+            {/* 선택 버튼 */}
+            <button
+              disabled={!currentActor}
+              onClick={() => { if (currentActor) { setSelectedActor(currentActor); setStep(2); } }}
+              className={cn(
+                'w-full h-[52px] rounded-full text-[15px] font-semibold transition-colors',
+                currentActor ? 'bg-[#E53935] text-white hover:bg-[#C62828]' : 'bg-[#D9D9D9] text-[#999999]',
+              )}
+            >
+              {currentActor ? `${currentActor.name}에게 제안하기` : '배우를 선택하세요'}
+            </button>
+
+            <FilterBottomSheet
+              filterType={activeFilter}
+              values={actorFilters}
+              onClose={() => setActiveFilter(null)}
+              onChange={handleActorFilterChange}
+            />
           </>
         )}
 

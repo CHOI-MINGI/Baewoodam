@@ -30,7 +30,7 @@ export default function FilterBottomSheet({
   onClose,
   onChange,
 }: FilterBottomSheetProps) {
-  const [localFilmo, setLocalFilmo] = useState<[number, number]>([values.minFilmo, values.maxFilmo]);
+  const [localFilmo, setLocalFilmo] = useState<number>(values.minFilmo);
 
   if (filterType === 'ageRange') {
     return (
@@ -88,18 +88,21 @@ export default function FilterBottomSheet({
 
         {filterType === 'filmCount' && (
           <div className="py-6">
-            <div className="flex justify-between text-[13px] text-[#888888] mb-4">
-              <span>{localFilmo[0]}개</span>
-              <span>{localFilmo[1]}개</span>
+            <div className="text-center text-[15px] font-semibold text-[#1A1A1A] mb-4">
+              {localFilmo === 0 ? '전체' : `${localFilmo}편 이상`}
             </div>
             <Slider
               min={0}
-              max={30}
+              max={50}
               step={1}
-              value={localFilmo}
-              onValueChange={(v) => setLocalFilmo(v as [number, number])}
+              value={[localFilmo]}
+              onValueChange={(v) => setLocalFilmo((v as number[])[0])}
               className="[&_[role=slider]]:bg-[#E53935] [&_.bg-primary]:bg-[#E53935]"
             />
+            <div className="flex justify-between text-[12px] text-[#BBBBBB] mt-2">
+              <span>0편</span>
+              <span>50편 이상</span>
+            </div>
           </div>
         )}
 
@@ -107,7 +110,7 @@ export default function FilterBottomSheet({
           <button
             onClick={() => {
               if (filterType === 'filmCount') {
-                onChange({ minFilmo: localFilmo[0], maxFilmo: localFilmo[1] });
+                onChange({ minFilmo: localFilmo, maxFilmo: 999 });
               }
               onClose();
             }}

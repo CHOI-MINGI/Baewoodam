@@ -12,6 +12,7 @@ const createSchema = z.object({
   genre: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   thumbnailUrl: z.string().optional().nullable(),
+  youtubeUrl: z.string().optional().nullable(),
 });
 
 export async function GET() {

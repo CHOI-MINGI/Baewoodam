@@ -13,6 +13,7 @@ const updateSchema = z.object({
   location: z.string().optional(),
   contactableTime: z.string().optional(),
   contactMemo: z.string().optional(),
+  isPublic: z.boolean().optional(),
   ageRange: z.enum(['TEENS', 'TWENTIES', 'THIRTIES', 'FORTIES', 'FIFTIES']).optional(),
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
   skills: z.array(z.string()).optional(),
@@ -78,5 +79,31 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: err.issues }, { status: 400 });
     }
     return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userId = session.user.id as string;
+
+    await db.$transaction(async (tx) => {
+      // 1. 다른 유저 WorkCredit에서 linkedUser 참조 null 처리
+      await tx.workCredit.updateMany({ where: { linkedUserId: userId }, data: { linkedUserId: null } });
+      // 2. 내 Work 삭제 (WorkCredit cascade)
+      await tx.work.deleteMany({ where: { userId } });
+      // 3. CastingOffer (sender/receiver에 cascade 없어서 직접 삭제)
+      await tx.castingOffer.deleteMany({
+        where: { OR: [{ senderUserId: userId }, { receiverUserId: userId }] },
+      });
+      // 4. User 삭제 (Filmography, Showreel, Notification, Project 등 cascade)
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    console.error('[DELETE /api/users/me]', err?.message);
+    return NextResponse.json({ error: err?.message ?? '계정 삭제 중 오류가 발생했습니다.' }, { status: 500 });
   }
 }

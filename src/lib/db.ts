@@ -14,7 +14,11 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient();
+// 스키마 변경 후 재시작 없이도 새 모델을 인식하도록 유효성 검사
+const cached = globalForPrisma.prisma;
+const isValidCache = cached != null && 'work' in cached;
+
+export const db = isValidCache ? cached : createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = db;

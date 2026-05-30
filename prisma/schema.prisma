@@ -103,6 +103,7 @@ model User {
   contactableTime      String?
   contactMemo          String?
   isActive             Boolean  @default(true)
+  isPublic             Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -116,6 +117,8 @@ model User {
   notifications        Notification[]
   recentlyViewed       RecentlyViewedActor[] @relation("ViewerUser")
   recentlyViewedBy     RecentlyViewedActor[] @relation("ActorUser")
+  works                Work[]
+  workCredits          WorkCredit[]
 
   @@index([roleType])
   @@index([isActive])
@@ -157,12 +160,14 @@ model Filmography {
   genre         String?
   year          Int
   thumbnailUrl  String?
+  youtubeUrl    String?
   description   String?
   sortOrder     Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   showreels     Showreel[]
+  work          Work?
 
   @@index([userId])
   @@index([year])
@@ -279,4 +284,43 @@ model RecentlyViewedActor {
 
   @@unique([viewerUserId, actorUserId])
   @@index([viewerUserId])
+}
+
+model Work {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  youtubeUrl     String
+  videoId        String
+  title          String
+  thumbnailUrl   String?
+  channelTitle   String?
+  genre          String?
+  year           Int?
+  description    String?
+  myRole         String?
+  isFeatured     Boolean      @default(false)
+  isPublic       Boolean      @default(true)
+  filmographyId  String?      @unique
+  filmography    Filmography? @relation(fields: [filmographyId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  credits      WorkCredit[]
+
+  @@index([userId])
+}
+
+model WorkCredit {
+  id           String   @id @default(cuid())
+  workId       String
+  work         Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  role         String
+  name         String
+  linkedUserId String?
+  linkedUser   User?    @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([workId])
+  @@index([linkedUserId])
 }
