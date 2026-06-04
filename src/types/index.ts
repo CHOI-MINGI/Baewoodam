@@ -15,6 +15,7 @@ export interface FilmographyItem {
   genre: string | null;
   year: number;
   thumbnailUrl: string | null;
+  youtubeUrl: string | null;
   description: string | null;
   sortOrder: number;
 }
@@ -53,6 +54,7 @@ export interface ActorDetail extends ActorListItem {
   publicPortfolioUrl: string | null;
   filmographies: FilmographyItem[];
   showreels: ShowreelItem[];
+  featuredWorks?: FeaturedWork[];
 }
 
 export interface CastingOfferWithDetails {
@@ -125,4 +127,16 @@ export interface CharacterItem {
   description: string | null;
   keywords: string[];
   castingStatus: string;
+}
+
+/** A Work that has been marked as featured on an actor's public profile. */
+export interface FeaturedWork {
+  id: string;
+  title: string;
+  youtubeUrl: string;
+  thumbnailUrl: string | null;
+  genre: string | null;
+  year: number | null;
+  myRole: string | null;
+  channelTitle: string | null;
 }

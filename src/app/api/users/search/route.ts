@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { requireUserId } from '@/lib/api-helpers';
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? '';
   if (!q) return NextResponse.json([]);
@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     where: {
       name: { contains: q, mode: 'insensitive' },
       isActive: true,
+      isPublic: true,
     },
     select: { id: true, name: true, image: true },
     take: 20,

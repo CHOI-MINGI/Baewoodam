@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { uploadImage } from '@/lib/storage';
+import { requireUserId } from '@/lib/api-helpers';
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const form = await req.formData();
   const file = form.get('file') as File | null;
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const url = await uploadImage(
       bucket as 'profiles' | 'filmography-thumbnails',
-      session.user.id,
+      userId,
       file,
     );
     return NextResponse.json({ url });

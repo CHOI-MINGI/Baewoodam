@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { requireUserId } from '@/lib/api-helpers';
 
 export async function PATCH() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   await db.notification.updateMany({
-    where: { userId: session.user.id, isRead: false },
+    where: { userId, isRead: false },
     data: { isRead: true },
   });
 

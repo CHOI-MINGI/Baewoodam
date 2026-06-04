@@ -6,31 +6,7 @@ import Image from 'next/image';
 import { Pencil, Play, Settings, ExternalLink, X } from 'lucide-react';
 import { AGE_RANGE_MAP, MEDIA_TYPE_MAP, ROLE_MAP } from '@/constants';
 import ImageCropper from '@/components/shared/ImageCropper';
-import type { ActorDetail } from '@/types';
-
-interface FeaturedWork {
-  id: string;
-  title: string;
-  youtubeUrl: string;
-  thumbnailUrl: string | null;
-  genre: string | null;
-  year: number | null;
-  myRole: string | null;
-  channelTitle: string | null;
-}
-
-interface FilmoDetail {
-  id: string;
-  title: string;
-  mediaType: string;
-  role: string;
-  characterName: string | null;
-  genre: string | null;
-  year: number;
-  thumbnailUrl: string | null;
-  youtubeUrl: string | null;
-  description: string | null;
-}
+import type { ActorDetail, FilmographyItem, FeaturedWork } from '@/types';
 
 async function uploadImageFile(file: File, bucket: string): Promise<string> {
   const form = new FormData();
@@ -42,10 +18,10 @@ async function uploadImageFile(file: File, bucket: string): Promise<string> {
 }
 
 export default function MypagePage() {
-  const [actor, setActor] = useState<(ActorDetail & { coverImage?: string | null; featuredWorks?: FeaturedWork[] }) | null>(null);
+  const [actor, setActor] = useState<ActorDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPublic, setIsPublic] = useState(true);
-  const [selectedFilmo, setSelectedFilmo] = useState<FilmoDetail | null>(null);
+  const [selectedFilmo, setSelectedFilmo] = useState<FilmographyItem | null>(null);
   const [coverCropSrc, setCoverCropSrc] = useState<string | null>(null);
   const coverRef = useRef<HTMLInputElement>(null);
 
@@ -111,7 +87,7 @@ export default function MypagePage() {
   );
   const sortedYears = Object.keys(filmoByYear).map(Number).sort((a, b) => b - a);
 
-  const featuredWorks = actor?.featuredWorks ?? [];
+  const featuredWorks: FeaturedWork[] = actor?.featuredWorks ?? [];
   const showreels = actor?.showreels ?? [];
   const hasRepVideo = featuredWorks.length > 0 || showreels.length > 0;
 
@@ -221,7 +197,7 @@ export default function MypagePage() {
                     {filmoByYear[year].map((film) => (
                       <button
                         key={film.id}
-                        onClick={() => setSelectedFilmo(film as any)}
+                        onClick={() => setSelectedFilmo(film)}
                         className="flex gap-4 items-start text-left hover:bg-[#FAFAFA] rounded-xl p-1 -m-1 transition-colors"
                       >
                         <div className="w-2 h-2 rounded-full border-2 border-[#E53935] mt-2 flex-shrink-0" />

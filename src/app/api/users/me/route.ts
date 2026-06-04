@@ -1,7 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { db } from '@/lib/db';
+import { requireUserId, handleRouteError, apiError } from '@/lib/api-helpers';
 
 const updateSchema = z.object({
   name: z.string().optional(),
@@ -23,13 +23,11 @@ const updateSchema = z.object({
 });
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const user = await db.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
     include: { actorProfile: true, agencyProfile: true },
   });
 
@@ -37,14 +35,11 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   try {
-    const body = await req.json();
-    const data = updateSchema.parse(body);
+    const data = updateSchema.parse(await req.json());
 
     const {
       ageRange, gender, skills, preferredGenres,
@@ -53,57 +48,81 @@ export async function PATCH(req: NextRequest) {
     } = data;
 
     const user = await db.user.update({
-      where: { id: session.user.id },
+      where: { id: userId },
       data: userFields,
     });
 
-    if (ageRange || gender || skills || preferredGenres) {
+    // Use strict undefined checks so that passing an empty array (e.g. skills:[])
+    // correctly clears all values rather than being silently skipped.
+    const hasActorProfileFields =
+      ageRange !== undefined ||
+      gender !== undefined ||
+      skills !== undefined ||
+      preferredGenres !== undefined;
+
+    if (hasActorProfileFields) {
       await db.actorProfile.upsert({
-        where: { userId: session.user.id },
-        update: { ageRange, gender, ...(skills && { skills }), ...(preferredGenres && { preferredGenres }) },
-        create: { userId: session.user.id, ageRange, gender, skills: skills ?? [], preferredGenres: preferredGenres ?? [] },
+        where: { userId },
+        update: {
+          ...(ageRange !== undefined && { ageRange }),
+          ...(gender !== undefined && { gender }),
+          ...(skills !== undefined && { skills }),
+          ...(preferredGenres !== undefined && { preferredGenres }),
+        },
+        create: {
+          userId,
+          ageRange,
+          gender,
+          skills: skills ?? [],
+          preferredGenres: preferredGenres ?? [],
+        },
       });
     }
 
-    if (companyName || position) {
+    if (companyName !== undefined || position !== undefined) {
       await db.agencyProfile.upsert({
-        where: { userId: session.user.id },
-        update: { companyName, position, ...(preferredGenres && { preferredGenres }) },
-        create: { userId: session.user.id, companyName, position, preferredGenres: preferredGenres ?? [] },
+        where: { userId },
+        update: {
+          ...(companyName !== undefined && { companyName }),
+          ...(position !== undefined && { position }),
+          ...(preferredGenres !== undefined && { preferredGenres }),
+        },
+        create: {
+          userId,
+          companyName,
+          position,
+          preferredGenres: preferredGenres ?? [],
+        },
       });
     }
 
     return NextResponse.json(user);
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.issues }, { status: 400 });
-    }
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    return handleRouteError(err);
   }
 }
 
 export async function DELETE() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = session.user.id as string;
+    const userId = await requireUserId();
+    if (userId instanceof NextResponse) return userId;
 
     await db.$transaction(async (tx) => {
-      // 1. 다른 유저 WorkCredit에서 linkedUser 참조 null 처리
+      // Clear linkedUser references in other users' WorkCredits before deleting this account.
       await tx.workCredit.updateMany({ where: { linkedUserId: userId }, data: { linkedUserId: null } });
-      // 2. 내 Work 삭제 (WorkCredit cascade)
+      // Delete own Works (WorkCredits cascade via FK).
       await tx.work.deleteMany({ where: { userId } });
-      // 3. CastingOffer (sender/receiver에 cascade 없어서 직접 삭제)
+      // CastingOffers have no cascade on sender/receiver — delete explicitly.
       await tx.castingOffer.deleteMany({
         where: { OR: [{ senderUserId: userId }, { receiverUserId: userId }] },
       });
-      // 4. User 삭제 (Filmography, Showreel, Notification, Project 등 cascade)
+      // Finally delete the User row (Filmography, Showreel, Notification, Project cascade).
       await tx.user.delete({ where: { id: userId } });
     });
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error('[DELETE /api/users/me]', err?.message);
-    return NextResponse.json({ error: err?.message ?? '계정 삭제 중 오류가 발생했습니다.' }, { status: 500 });
+    return apiError.serverError(err?.message ?? '계정 삭제 중 오류가 발생했습니다.');
   }
 }

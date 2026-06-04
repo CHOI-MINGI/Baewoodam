@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { apiError } from '@/lib/api-helpers';
 
 export async function GET(
   _req: NextRequest,
@@ -21,9 +22,7 @@ export async function GET(
     },
   });
 
-  if (!user) {
-    return NextResponse.json({ error: '배우를 찾을 수 없습니다.' }, { status: 404 });
-  }
+  if (!user) return apiError.notFound('배우를 찾을 수 없습니다.');
 
   return NextResponse.json({
     id: user.id,

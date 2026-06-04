@@ -1,7 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { db } from '@/lib/db';
+import { requireUserId, handleRouteError, apiError } from '@/lib/api-helpers';
 
 const sendSchema = z.object({
   actorId: z.string(),
@@ -14,16 +14,16 @@ const sendSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const type = req.nextUrl.searchParams.get('type') ?? 'received';
   const status = req.nextUrl.searchParams.get('status');
 
   const where =
     type === 'sent'
-      ? { senderUserId: session.user.id, ...(status && { status: status as any }) }
-      : { receiverUserId: session.user.id, ...(status && { status: status as any }) };
+      ? { senderUserId: userId, ...(status && { status: status as any }) }
+      : { receiverUserId: userId, ...(status && { status: status as any }) };
 
   const offers = await db.castingOffer.findMany({
     where,
@@ -40,8 +40,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   try {
     const body = sendSchema.parse(await req.json());
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       data: {
         projectId: body.projectId,
         characterId: body.characterId,
-        senderUserId: session.user.id,
+        senderUserId: userId,
         receiverUserId: body.actorId,
         shootingPeriod: body.shootingPeriod,
         shootingLocation: body.shootingLocation,
@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 수신자 알림 생성
     await db.notification.create({
       data: {
         userId: body.actorId,
@@ -72,7 +71,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(offer, { status: 201 });
   } catch (err) {
-    if (err instanceof z.ZodError) return NextResponse.json({ error: err.issues }, { status: 400 });
-    return NextResponse.json({ error: '오류가 발생했습니다.' }, { status: 500 });
+    return handleRouteError(err);
   }
 }

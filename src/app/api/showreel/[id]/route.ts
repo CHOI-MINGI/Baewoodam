@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { requireUserId, apiError } from '@/lib/api-helpers';
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const { id } = await params;
   const item = await db.showreel.findUnique({ where: { id } });
-  if (!item || item.userId !== session.user.id) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
-  }
+  if (!item || item.userId !== userId) return apiError.forbidden();
 
-  // Supabase Storage에서도 삭제
   try {
     const { deleteFile } = await import('@/lib/storage');
     const path = item.videoUrl.split('/showreels/')[1];
@@ -30,21 +27,20 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const { id } = await params;
   const item = await db.showreel.findUnique({ where: { id } });
-  if (!item || item.userId !== session.user.id) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
-  }
+  if (!item || item.userId !== userId) return apiError.forbidden();
 
   const body = await req.json();
 
-  // 대표영상 설정: 먼저 같은 유저의 다른 영상 해제 후 이 영상만 true
+  // When promoting a showreel to featured, first clear all others for this user
+  // (excluding the target itself to avoid the unnecessary clear + re-set cycle).
   if (body.isFeatured === true) {
     await db.showreel.updateMany({
-      where: { userId: session.user.id },
+      where: { userId, id: { not: id } },
       data: { isFeatured: false },
     });
   }

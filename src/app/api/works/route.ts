@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/db';
 import { z } from 'zod';
+import { db } from '@/lib/db';
+import { requireUserId, mapRoleToFilmRole, handleRouteError, apiError } from '@/lib/api-helpers';
 
 const createSchema = z.object({
   youtubeUrl: z.string().url(),
@@ -15,27 +15,21 @@ const createSchema = z.object({
   myRole: z.string().optional().nullable(),
   isFeatured: z.boolean().optional(),
   isPublic: z.boolean().optional(),
-  credits: z.array(z.object({
-    role: z.string(),
-    name: z.string(),
-    linkedUserId: z.string().optional().nullable(),
-  })).optional(),
+  credits: z
+    .array(
+      z.object({
+        role: z.string(),
+        name: z.string(),
+        linkedUserId: z.string().optional().nullable(),
+      }),
+    )
+    .optional(),
 });
-
-function mapRoleToFilmRole(myRole?: string | null): 'LEAD' | 'SUPPORTING' | 'EXTRA' | 'OTHER' {
-  if (!myRole) return 'OTHER';
-  const lower = myRole.toLowerCase();
-  if (lower.includes('주연') || lower.includes('lead')) return 'LEAD';
-  if (lower.includes('조연') || lower.includes('supporting')) return 'SUPPORTING';
-  if (lower.includes('단역') || lower.includes('extra')) return 'EXTRA';
-  return 'OTHER';
-}
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = session.user.id as string;
+    const userId = await requireUserId();
+    if (userId instanceof NextResponse) return userId;
 
     const works = await db.work.findMany({
       where: { userId },
@@ -54,9 +48,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const userId = session.user.id as string;
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   try {
     const body = createSchema.parse(await req.json());
@@ -82,9 +75,7 @@ export async function POST(req: NextRequest) {
           userId,
           filmographyId: filmography.id,
           ...workData,
-          credits: credits && credits.length > 0
-            ? { create: credits }
-            : undefined,
+          credits: credits?.length ? { create: credits } : undefined,
         },
         include: { credits: true },
       });
@@ -94,8 +85,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
-    if (err instanceof z.ZodError) return NextResponse.json({ error: err.issues }, { status: 400 });
+    if (err instanceof z.ZodError) return apiError.badRequest(err.issues);
     console.error(err);
-    return NextResponse.json({ error: '오류가 발생했습니다.' }, { status: 500 });
+    return handleRouteError(err);
   }
 }

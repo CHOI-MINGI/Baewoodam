@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { requireUserId, apiError } from '@/lib/api-helpers';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const { id: offerId } = await params;
   const offer = await db.castingOffer.findUnique({ where: { id: offerId } });
-  if (!offer) return NextResponse.json({ error: '없는 제안입니다.' }, { status: 404 });
-  if (offer.receiverUserId !== session.user.id) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
-  }
+  if (!offer) return apiError.notFound('없는 제안입니다.');
+  if (offer.receiverUserId !== userId) return apiError.forbidden();
   if (offer.status !== 'ACCEPTED') {
-    return NextResponse.json({ error: '수락된 제안만 오디션을 제출할 수 있습니다.' }, { status: 400 });
+    return apiError.badRequest('수락된 제안만 오디션을 제출할 수 있습니다.');
   }
 
   try {
@@ -27,21 +25,15 @@ export async function POST(
     const { uploadVideo } = await import('@/lib/storage');
 
     const firstFile = files[0];
-    let auditionVideoUrl = '';
-    if (firstFile) {
-      auditionVideoUrl = await uploadVideo(session.user.id!, firstFile, 'auditions');
-    }
+    const auditionVideoUrl = firstFile
+      ? await uploadVideo(userId, firstFile, 'auditions')
+      : '';
 
     const updated = await db.castingOffer.update({
       where: { id: offerId },
-      data: {
-        status: 'AUDITION_SUBMITTED',
-        auditionVideoUrl,
-        auditionNote: note,
-      },
+      data: { status: 'AUDITION_SUBMITTED', auditionVideoUrl, auditionNote: note },
     });
 
-    // 발신자 알림
     await db.notification.create({
       data: {
         userId: offer.senderUserId,

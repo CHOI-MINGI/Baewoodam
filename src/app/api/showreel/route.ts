@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { requireUserId } from '@/lib/api-helpers';
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const items = await db.showreel.findMany({
-    where: { userId: session.user.id },
+    where: { userId },
     orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }],
   });
   return NextResponse.json(items);
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   try {
     const formData = await req.formData();
@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
 
     const { uploadVideo } = await import('@/lib/storage');
 
-    const userId = session.user!.id!;
     const records = await Promise.all(
       files.map(async (file) => {
         const videoUrl = await uploadVideo(userId, file, 'showreels');

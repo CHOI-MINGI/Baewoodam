@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/db';
 import { z } from 'zod';
+import { db } from '@/lib/db';
+import { requireUserId, getOwnedWork, handleRouteError, apiError } from '@/lib/api-helpers';
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -19,22 +19,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userId = await requireUserId();
+    if (userId instanceof NextResponse) return userId;
+
     const { id } = await params;
     const work = await db.work.findUnique({
-      where: { id, userId: session.user.id as string },
+      where: { id, userId },
       include: {
         credits: {
           include: { linkedUser: { select: { id: true, name: true, image: true } } },
         },
       },
     });
-    if (!work) return NextResponse.json({ error: '없는 항목입니다.' }, { status: 404 });
+    if (!work) return apiError.notFound('없는 항목입니다.');
     return NextResponse.json(work);
   } catch (err: any) {
     console.error('[GET /api/works/[id]]', err);
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    return apiError.serverError('서버 오류가 발생했습니다.');
   }
 }
 
@@ -42,23 +43,20 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const { id } = await params;
-  const existing = await db.work.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
-  }
+  const existing = await getOwnedWork(id, userId);
+  if (!existing) return apiError.forbidden();
 
   try {
     const body = updateSchema.parse(await req.json());
 
     const work = await db.$transaction(async (tx) => {
-      // 대표영상 설정 시 다른 작품 해제
       if (body.isFeatured === true) {
         await tx.work.updateMany({
-          where: { userId: session.user!.id as string, id: { not: id } },
+          where: { userId, id: { not: id } },
           data: { isFeatured: false },
         });
       }
@@ -83,8 +81,7 @@ export async function PATCH(
 
     return NextResponse.json(work);
   } catch (err) {
-    if (err instanceof z.ZodError) return NextResponse.json({ error: err.issues }, { status: 400 });
-    return NextResponse.json({ error: '오류가 발생했습니다.' }, { status: 500 });
+    return handleRouteError(err);
   }
 }
 
@@ -92,14 +89,12 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const { id } = await params;
-  const existing = await db.work.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
-    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
-  }
+  const existing = await getOwnedWork(id, userId);
+  if (!existing) return apiError.forbidden();
 
   try {
     await db.$transaction(async (tx) => {
@@ -111,6 +106,6 @@ export async function DELETE(
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[DELETE /api/works/[id]]', err);
-    return NextResponse.json({ error: '오류가 발생했습니다.' }, { status: 500 });
+    return handleRouteError(err);
   }
 }

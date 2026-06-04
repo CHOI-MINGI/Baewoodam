@@ -46,7 +46,11 @@ export default function CastingDetailPage() {
   const [processing, setProcessing] = useState(false);
 
   const load = () => {
-    fetch(`/api/casting/${id}`).then(r => r.json()).then(d => { setOffer(d); setLoading(false); });
+    fetch(`/api/casting/${id}`)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((d) => setOffer(d))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, [id]);
 
@@ -84,6 +88,16 @@ export default function CastingDetailPage() {
       body: JSON.stringify({ action, rejectReason }),
     });
     setProcessing(false);
+    if (res.ok) load();
+    else alert('처리에 실패했어요.');
+  };
+
+  const handleFinalize = async (action: 'select' | 'reject') => {
+    const res = await fetch(`/api/casting/${id}/finalize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
     if (res.ok) load();
     else alert('처리에 실패했어요.');
   };
@@ -265,40 +279,13 @@ export default function CastingDetailPage() {
         {isSender && offer.status === 'AUDITION_SUBMITTED' && (
           <div className="flex gap-3">
             <button
-              onClick={async () => {
-                const res = await fetch(`/api/casting/${id}/finalize`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    action: 'select',
-                  }),
-                });
-
-                if (res.ok) load();
-                else alert('처리에 실패했어요.');
-              }}
+              onClick={() => handleFinalize('select')}
               className="flex-1 h-[52px] rounded-full border border-[#E0E0E0] bg-white text-[#1A1A1A] text-[15px] font-semibold"
             >
               최종 합격
             </button>
-
             <button
-              onClick={async () => {
-                const res = await fetch(`/api/casting/${id}/finalize`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    action: 'reject',
-                  }),
-                });
-
-                if (res.ok) load();
-                else alert('처리에 실패했어요.');
-              }}
+              onClick={() => handleFinalize('reject')}
               className="flex-1 h-[52px] rounded-full bg-[#1A1A1A] text-white text-[15px] font-semibold"
             >
               최종 불합격

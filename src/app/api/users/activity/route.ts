@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { requireUserId } from '@/lib/api-helpers';
+
+type ActivityItem = {
+  icon: string;
+  title: string;
+  sub: string;
+  date: Date;
+};
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const userId = session.user.id as string;
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const [filmographies, showreels, offers] = await Promise.all([
     db.filmography.findMany({
@@ -37,13 +42,6 @@ export async function GET() {
     }),
   ]);
 
-  type ActivityItem = {
-    icon: string;
-    title: string;
-    sub: string;
-    date: Date;
-  };
-
   const activities: ActivityItem[] = [
     ...filmographies.map((f) => ({
       icon: '🎬',
@@ -60,15 +58,15 @@ export async function GET() {
     ...offers.map((o) => ({
       icon: o.status === 'ACCEPTED' ? '✅' : '❌',
       title: o.status === 'ACCEPTED' ? '캐스팅 제안 수락' : '캐스팅 제안 거절',
-      sub: o.project.title,
+      // Guard against a deleted project that left a dangling FK on the offer.
+      sub: o.project?.title ?? '',
       date: o.updatedAt,
     })),
   ];
 
   activities.sort((a, b) => b.date.getTime() - a.date.getTime());
-  const top4 = activities.slice(0, 4);
 
   return NextResponse.json(
-    top4.map((a) => ({ icon: a.icon, title: a.title, sub: a.sub, date: a.date })),
+    activities.slice(0, 4).map(({ icon, title, sub, date }) => ({ icon, title, sub, date })),
   );
 }

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { requireUserId } from '@/lib/api-helpers';
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const type = req.nextUrl.searchParams.get('type');
   const cursor = req.nextUrl.searchParams.get('cursor');
 
   const notifications = await db.notification.findMany({
     where: {
-      userId: session.user.id,
+      userId,
       ...(type && { type: type as any }),
     },
     orderBy: { createdAt: 'desc' },

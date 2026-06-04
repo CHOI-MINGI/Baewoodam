@@ -5,42 +5,21 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ArrowLeft, Phone, Download, Play, ExternalLink, X } from 'lucide-react';
 import { AGE_RANGE_MAP, MEDIA_TYPE_MAP, ROLE_MAP } from '@/constants';
-import type { ActorDetail } from '@/types';
-
-interface FeaturedWork {
-  id: string;
-  title: string;
-  youtubeUrl: string;
-  thumbnailUrl: string | null;
-  genre: string | null;
-  year: number | null;
-  myRole: string | null;
-}
-
-interface FilmoDetail {
-  id: string;
-  title: string;
-  mediaType: string;
-  role: string;
-  characterName: string | null;
-  genre: string | null;
-  year: number;
-  thumbnailUrl: string | null;
-  youtubeUrl: string | null;
-  description: string | null;
-}
+import type { ActorDetail, FilmographyItem, FeaturedWork } from '@/types';
 
 export default function ActorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [actor, setActor] = useState<(ActorDetail & { coverImage?: string | null; featuredWorks?: FeaturedWork[] }) | null>(null);
+  const [actor, setActor] = useState<ActorDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedFilmo, setSelectedFilmo] = useState<FilmoDetail | null>(null);
+  const [selectedFilmo, setSelectedFilmo] = useState<FilmographyItem | null>(null);
 
   useEffect(() => {
     fetch(`/api/actors/${id}`)
-      .then((r) => r.json())
-      .then((d) => { setActor(d); setLoading(false); });
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((d) => setActor(d))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [id]);
 
   if (loading) return <div className="min-h-screen bg-[#F5F5F5] animate-pulse" />;
@@ -50,12 +29,12 @@ export default function ActorDetailPage() {
     </div>
   );
 
-  const filmoByYear = actor.filmographies.reduce<Record<number, typeof actor.filmographies>>(
+  const filmoByYear = actor.filmographies.reduce<Record<number, FilmographyItem[]>>(
     (acc, f) => { if (!acc[f.year]) acc[f.year] = []; acc[f.year].push(f); return acc; },
     {},
   );
   const sortedYears = Object.keys(filmoByYear).map(Number).sort((a, b) => b - a);
-  const featuredWorks = actor.featuredWorks ?? [];
+  const featuredWorks: FeaturedWork[] = actor.featuredWorks ?? [];
   const hasRepVideo = featuredWorks.length > 0 || actor.showreels.length > 0;
 
   return (
@@ -109,7 +88,7 @@ export default function ActorDetailPage() {
                     {filmoByYear[year].map((film) => (
                       <button
                         key={film.id}
-                        onClick={() => setSelectedFilmo(film as any)}
+                        onClick={() => setSelectedFilmo(film)}
                         className="flex gap-3 items-start text-left hover:bg-[#F8F8F8] rounded-xl p-1.5 -mx-1.5 transition-colors"
                       >
                         <div className="w-2 h-2 rounded-full border-2 border-[#E53935] mt-2 flex-shrink-0" />

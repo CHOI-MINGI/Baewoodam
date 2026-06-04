@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Settings, Pencil, Play } from 'lucide-react';
 import { AGE_RANGE_MAP, MEDIA_TYPE_MAP, ROLE_MAP } from '@/constants';
-import type { ActorDetail, CastingOfferWithDetails } from '@/types';
+import type { ActorDetail, CastingOfferWithDetails, FeaturedWork } from '@/types';
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
   PENDING: { label: '대기중', className: 'bg-[#F5F5F5] text-[#888888]' },
@@ -16,17 +16,6 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
 };
 
 type ActivityItem = { icon: string; title: string; sub: string; date: string };
-
-interface FeaturedWork {
-  id: string;
-  title: string;
-  youtubeUrl: string;
-  thumbnailUrl: string | null;
-  genre: string | null;
-  year: number | null;
-  myRole: string | null;
-  channelTitle: string | null;
-}
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -43,7 +32,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function ActorHome() {
-  const [actor, setActor] = useState<(ActorDetail & { coverImage?: string | null; featuredWorks?: FeaturedWork[] }) | null>(null);
+  const [actor, setActor] = useState<ActorDetail | null>(null);
   const [offers, setOffers] = useState<CastingOfferWithDetails[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
