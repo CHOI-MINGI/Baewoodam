@@ -11,15 +11,19 @@
 
 | 분류 | 기술 |
 |---|---|
-| 프레임워크 | Next.js 15 (App Router) |
+| 프레임워크 | Next.js 16 (App Router) |
 | 언어 | TypeScript |
 | 스타일 | Tailwind CSS |
 | 데이터베이스 | PostgreSQL (Supabase) |
 | ORM | Prisma |
-| 인증 | NextAuth.js (credentials) |
+| 인증 | NextAuth.js (credentials + Google OAuth) |
 | 스토리지 | Supabase Storage |
 | 유효성 검사 | Zod + react-hook-form |
+| 서버 상태 관리 | TanStack React Query |
+| 클라이언트 상태 관리 | Zustand |
+| 이메일 발송 | Resend |
 | 이미지 크롭 | react-easy-crop |
+| PWA | next-pwa |
 | 레이트 리밋 | Upstash Redis |
 
 ---
@@ -45,10 +49,17 @@ DIRECT_URL="postgresql://..."
 NEXTAUTH_SECRET="랜덤 문자열"
 NEXTAUTH_URL="http://localhost:3000"
 
+# Google OAuth
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
+
 # Supabase Storage
 NEXT_PUBLIC_SUPABASE_URL="https://xxx.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJ..."
 SUPABASE_SERVICE_ROLE_KEY="eyJ..."
+
+# Resend (이메일 발송)
+RESEND_API_KEY="re_..."
 
 # Upstash Redis (레이트 리밋, 선택)
 UPSTASH_REDIS_REST_URL="https://..."
@@ -129,6 +140,7 @@ npm run db:reset     # DB 초기화 (개발용)
 | 에이전시 프로필 | `/signup/agency` | 이름, 소속사명, 직무 |
 
 - 비밀번호는 bcrypt로 해시 저장
+- Google 계정으로도 로그인 가능 (OAuth)
 - 가입 직후 자동 로그인 처리
 - 이메일 중복 시 에러 메시지 표시
 
@@ -139,13 +151,13 @@ npm run db:reset     # DB 초기화 (개발용)
 #### 한 줄 요약
 
 에이전시가 배우에게 "우리 작품에 출연해 주세요" 하고 제안을 보내고,  
-배우가 수락한 뒤 오디션 영상을 제출하면, 에이전시가 최종 결정하는 기능입니다.
+배우가 수락한 뒤 오디션 영상을 제출하면, 에이전시가 최종 합격/불합격을 결정하는 기능입니다.
 
 #### 등장인물
 
 | 역할 | 하는 일 |
 |---|---|
-| **에이전시** | 작품·배역을 만들고, 어울리는 배우를 찾아 제안을 보냄 |
+| **에이전시** | 작품·배역을 만들고, 어울리는 배우를 찾아 제안을 보내고, 최종 결정을 내림 |
 | **배우** | 제안을 받고, 수락/거절하고, 오디션 영상을 제출함 |
 
 #### 전체 흐름
@@ -168,9 +180,12 @@ npm run db:reset     # DB 초기화 (개발용)
         ▼
 [에이전시]
 7. 오디션 영상 확인                → /casting/[id]
+8. 최종 합격 / 최종 불합격 결정     → /casting/[id]
+        │
+        │  배우에게 최종 결과 알림
 ```
 
-#### 제안 상태 5가지
+#### 제안 상태 7가지
 
 | 상태값 | 한글 | 의미 |
 |---|---|---|
@@ -178,10 +193,15 @@ npm run db:reset     # DB 초기화 (개발용)
 | `ACCEPTED` | 수락 | 배우 수락 (오디션 영상 없음) |
 | `AUDITION_SUBMITTED` | 오디션 제출 | 배우가 오디션 영상까지 제출 |
 | `REJECTED` | 거절 | 배우가 거절 (거절 사유 포함 가능) |
+| `SELECTED` | 최종 합격 | 에이전시가 최종 합격 결정 |
+| `REJECTED_AFTER_AUDITION` | 최종 불합격 | 에이전시가 최종 불합격 결정 |
 | `EXPIRED` | 만료 | 기한 초과 자동 마감 |
 
-정상 흐름: `PENDING → ACCEPTED → AUDITION_SUBMITTED`  
-거절 흐름: `PENDING → REJECTED`
+```
+정상 흐름: PENDING → ACCEPTED → AUDITION_SUBMITTED → SELECTED
+거절 흐름: PENDING → REJECTED
+불합격 흐름: AUDITION_SUBMITTED → REJECTED_AFTER_AUDITION
+```
 
 #### 화면별 상세
 
@@ -209,7 +229,7 @@ npm run db:reset     # DB 초기화 (개발용)
 | 배우 | ACCEPTED | [오디션 영상 제출하기] 버튼 |
 | 에이전시 | PENDING | "배우의 응답을 기다리는 중" |
 | 에이전시 | ACCEPTED | "오디션 제출을 기다리는 중" |
-| 에이전시 | AUDITION_SUBMITTED | 오디션 영상 재생 가능 |
+| 에이전시 | AUDITION_SUBMITTED | 오디션 영상 재생 + [최종 합격] [최종 불합격] 버튼 |
 
 **오디션 제출 `/casting/[id]/accept`**
 
@@ -273,7 +293,7 @@ npm run db:reset     # DB 초기화 (개발용)
 #### 목록 `/filmography`
 
 - 연도별 그룹으로 표시
-- 수정(✏️) · 삭제(✕) 버튼
+- 수정 · 삭제 버튼
 
 #### 등록 · 수정 `/filmography/new`, `/filmography/[id]`
 
@@ -297,9 +317,9 @@ npm run db:reset     # DB 초기화 (개발용)
 
 - 등록된 쇼릴 카드 목록
 - 썸네일 클릭 → "대표영상으로 설정할까요?" 확인
-  - ★ 배지로 현재 대표 표시
+  - 별 배지로 현재 대표 표시
   - 하나만 대표 가능 (설정 시 나머지 자동 해제)
-- 수정(✏️) · 삭제(✕)
+- 수정 · 삭제
 
 #### 등록 `/showreel/new`
 
@@ -313,7 +333,7 @@ npm run db:reset     # DB 초기화 (개발용)
 #### 목록 `/works`
 
 - YouTube 작품 + 쇼릴 한 화면에 표시
-- **★ 대표영상 설정** 버튼
+- 대표영상 설정 버튼
   - 선택 모드 진입 → 작품 클릭 → "대표영상으로 설정할까요?" 확인
   - 대표 작품 클릭 시 해제 가능
   - 하나만 대표 가능
@@ -322,6 +342,7 @@ npm run db:reset     # DB 초기화 (개발용)
 
 - YouTube URL 입력 → oEmbed API로 제목·썸네일 자동 추출
 - 장르 · 연도 · 내 역할 · 설명 · 공개여부 설정
+- 크레딧(출연진·스태프) 등록 가능
 
 ---
 
@@ -335,6 +356,7 @@ npm run db:reset     # DB 초기화 (개발용)
 - 중앙 카드 크게, 양옆 카드 `rotateY(±42deg) scale(0.80)` 로 표시
 - 좌우 화살표 버튼 / 하단 아바타 썸네일 클릭으로 탐색
 - 중앙 배우 클릭 → 해당 배우 프로필 상세로 이동
+- 필모그래피 많은 순으로 추천 (`/api/actors/recommended`)
 
 #### 필터
 
@@ -365,7 +387,7 @@ npm run db:reset     # DB 초기화 (개발용)
 #### 배역(캐릭터) 관리 `/projects/[id]/characters`
 
 - 캐릭터 이름 · 나이대 · 성별 · 설명 · 키워드 등록
-- 각 캐릭터마다 **"배우 찾기"** 버튼 → 제안 전송 화면으로 이동
+- 각 캐릭터마다 "배우 찾기" 버튼 → 제안 전송 화면으로 이동
 - 추가 · 수정 · 삭제
 
 ---
@@ -380,6 +402,8 @@ npm run db:reset     # DB 초기화 (개발용)
 | 배우가 수락 | 에이전시 | "배우가 제안을 수락했어요" |
 | 배우가 거절 | 에이전시 | "배우가 제안을 거절했어요" |
 | 배우가 오디션 제출 | 에이전시 | "오디션 영상이 제출됐어요" |
+| 에이전시가 최종 합격 결정 | 배우 | "캐스팅에 최종 선정되었습니다" |
+| 에이전시가 최종 불합격 결정 | 배우 | "이번 캐스팅에는 선정되지 않았습니다" |
 
 - 읽지 않은 알림 개수 → 하단 탭바 뱃지에 표시
 - 알림 클릭 → 해당 제안 상세로 이동
@@ -432,24 +456,27 @@ npm run db:reset     # DB 초기화 (개발용)
 
 ```
 User
-├── ActorProfile      배우 전용 (나이대·성별·신체·스킬)
-├── AgencyProfile     에이전시 전용 (소속·직무)
-├── Filmography[]     필모그래피
-├── Showreel[]        쇼릴
-├── Work[]            YouTube 작품
-├── Project[]         에이전시가 만든 프로젝트
-├── CastingOffer[]    보낸/받은 제안
-└── Notification[]    알림
+├── ActorProfile         배우 전용 (나이대·성별·신체·스킬)
+├── AgencyProfile        에이전시 전용 (소속·직무)
+├── Filmography[]        필모그래피
+├── Showreel[]           쇼릴
+├── Work[]               YouTube 작품
+│   └── WorkCredit[]     작품 크레딧 (출연진·스태프)
+├── Project[]            에이전시가 만든 프로젝트
+├── CastingOffer[]       보낸/받은 제안
+├── Notification[]       알림
+└── RecentlyViewedActor  최근 본 배우 (에이전시 기준)
 
 Project
-└── Character[]       배역 목록
+└── Character[]          배역 목록
 
 CastingOffer
-├── sender   → User (에이전시)
-├── receiver → User (배우)
-├── project  → Project
+├── sender    → User (에이전시)
+├── receiver  → User (배우)
+├── project   → Project
 ├── character → Character
-└── status: PENDING | ACCEPTED | AUDITION_SUBMITTED | REJECTED | EXPIRED
+└── status: PENDING | ACCEPTED | AUDITION_SUBMITTED
+            | REJECTED | SELECTED | REJECTED_AFTER_AUDITION | EXPIRED
 ```
 
 ---
@@ -484,14 +511,26 @@ src/
 │   │   └── settings/             # 설정
 │   └── api/                      # API 라우트
 │       ├── actors/
+│       │   ├── route.ts          # 배우 목록 (필터·페이지네이션)
+│       │   ├── [id]/             # 배우 상세 (공개 프로필)
+│       │   └── recommended/      # 추천 배우 (필모 많은 순)
 │       ├── casting/
-│       ├── filmography/
-│       ├── projects/
-│       ├── showreel/
+│       │   ├── route.ts          # 제안 목록·발송
+│       │   └── [id]/
+│       │       ├── route.ts      # 제안 상세·삭제
+│       │       ├── respond/      # 배우 수락·거절
+│       │       ├── audition/     # 오디션 영상 제출
+│       │       └── finalize/     # 에이전시 최종 결정
+│       ├── filmography/          # 필모그래피 CRUD
+│       ├── notifications/        # 알림 목록·읽음 처리
+│       ├── projects/             # 프로젝트·캐릭터 CRUD
+│       ├── showreel/             # 쇼릴 CRUD
+│       ├── upload/image/         # 이미지 업로드
 │       ├── users/
-│       │   ├── me/               # 내 정보 조회·수정
-│       │   └── activity/         # 최근 활동
-│       └── works/
+│       │   ├── me/               # 내 정보 조회·수정·탈퇴
+│       │   ├── activity/         # 최근 활동
+│       │   └── search/           # 유저 검색
+│       └── works/                # 작품 CRUD + oEmbed + 크레딧
 ├── components/
 │   ├── home/
 │   │   ├── ActorHome.tsx         # 배우 홈
@@ -503,6 +542,7 @@ src/
 │       ├── FilterBottomSheet.tsx
 │       └── ImageCropper.tsx      # 이미지 크롭 UI
 ├── lib/
+│   ├── api-helpers.ts            # API 공통 유틸 (인증·에러·소유권 검증)
 │   ├── auth.ts                   # NextAuth 설정
 │   ├── db.ts                     # Prisma 클라이언트
 │   ├── storage.ts                # Supabase Storage 헬퍼
