@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Film } from 'lucide-react';
+import { Plus, Film, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MEDIA_TYPE_MAP } from '@/constants';
 import type { ProjectItem } from '@/types';
@@ -19,6 +19,16 @@ export default function ProjectsPage() {
       .then((r) => r.json())
       .then((d) => { setProjects(d ?? []); setLoading(false); });
   }, []);
+
+  const handleDelete = async (projectId: string, title: string) => {
+    if (!confirm(`"${title}" 프로젝트를 삭제하시겠습니까?\n\n배역과 캐스팅 제안이 모두 함께 삭제됩니다.`)) return;
+    const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    } else {
+      alert('삭제에 실패했어요.');
+    }
+  };
 
   const filtered = tab === '전체' ? projects : projects.filter((p) => {
     if (tab === '모집중') return p.recruitStatus === 'OPEN';
@@ -80,7 +90,13 @@ export default function ProjectsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-4">
-            {filtered.map((project) => <ProjectCard key={project.id} project={project} />)}
+            {filtered.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onDelete={() => handleDelete(project.id, project.title)}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -88,7 +104,13 @@ export default function ProjectsPage() {
   );
 }
 
-function ProjectCard({ project }: { project: ProjectItem }) {
+function ProjectCard({
+  project,
+  onDelete,
+}: {
+  project: ProjectItem;
+  onDelete: () => void;
+}) {
   const castTotal = project.characters.length;
   const castDone = project.characters.filter((c) => c.castingStatus === 'CAST').length;
   const progress = castTotal > 0 ? Math.round((castDone / castTotal) * 100) : 0;
@@ -101,8 +123,8 @@ function ProjectCard({ project }: { project: ProjectItem }) {
   const status = statusLabel[project.recruitStatus] ?? statusLabel.OPEN;
 
   return (
-    <Link href={`/projects/${project.id}/characters`}>
-      <div className="bg-white rounded-2xl p-5 border border-[#F0F0F0] hover:shadow-md transition-shadow cursor-pointer h-full">
+    <div className="relative group bg-white rounded-2xl border border-[#F0F0F0] hover:shadow-md transition-shadow h-full">
+      <Link href={`/projects/${project.id}/characters`} className="block p-5 h-full">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[12px] text-[#888888] bg-[#F5F5F5] px-2.5 py-1 rounded-full">
             {(MEDIA_TYPE_MAP as any)[project.mediaType] ?? project.mediaType}
@@ -124,7 +146,16 @@ function ProjectCard({ project }: { project: ProjectItem }) {
         <div className="h-1.5 bg-[#F0F0F0] rounded-full overflow-hidden">
           <div className="h-full bg-[#E53935] rounded-full" style={{ width: `${progress}%` }} />
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {/* 삭제 버튼 — 카드 호버 시 표시 */}
+      <button
+        onClick={(e) => { e.preventDefault(); onDelete(); }}
+        className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white border border-[#F0F0F0] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#FEE2E2] hover:border-[#E53935]"
+        title="프로젝트 삭제"
+      >
+        <Trash2 size={13} className="text-[#888888] hover:text-[#E53935]" />
+      </button>
+    </div>
   );
 }

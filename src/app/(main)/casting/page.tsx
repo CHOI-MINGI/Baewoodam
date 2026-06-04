@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CASTING_STATUS_MAP, MEDIA_TYPE_MAP } from '@/constants';
 import type { CastingOfferWithDetails } from '@/types';
@@ -16,7 +17,8 @@ const STATUS_FILTER: Record<string, string[]> = {
   '마감': ['EXPIRED'],
 };
 
-
+/** 에이전시(발신자)가 삭제할 수 있는 상태 목록 */
+const DELETABLE_STATUSES = ['PENDING', 'REJECTED', 'EXPIRED', 'REJECTED_AFTER_AUDITION'];
 
 export default function CastingPage() {
   const { data: session, status } = useSession();
@@ -24,21 +26,25 @@ export default function CastingPage() {
   const [offers, setOffers] = useState<CastingOfferWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isAgency = (session?.user as any)?.roleType === 'AGENCY';
+
   useEffect(() => {
-  if (status !== "authenticated") return;
+    if (status !== "authenticated") return;
+    const type = isAgency ? "sent" : "received";
+    fetch(`/api/casting?type=${type}`)
+      .then((r) => r.json())
+      .then((d) => { setOffers(d ?? []); setLoading(false); });
+  }, [session, status]);
 
-  const type =
-    (session?.user as any)?.roleType === "AGENCY"
-      ? "sent"
-      : "received";
-
-  fetch(`/api/casting?type=${type}`)
-    .then((r) => r.json())
-    .then((d) => {
-      setOffers(d ?? []);
-      setLoading(false);
-    });
-}, [session, status]);
+  const handleDelete = async (offerId: string) => {
+    if (!confirm('이 캐스팅 제안을 삭제하시겠습니까?')) return;
+    const res = await fetch(`/api/casting/${offerId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setOffers((prev) => prev.filter((o) => o.id !== offerId));
+    } else {
+      alert('삭제에 실패했어요.');
+    }
+  };
 
   const filtered = tab === '전체'
     ? offers
@@ -49,9 +55,7 @@ export default function CastingPage() {
       {/* 헤더 */}
       <div className="px-4 py-3 border-b border-[#F0F0F0]">
         <h1 className="text-[16px] font-semibold text-[#1A1A1A]">
-        {(session?.user as any)?.roleType === 'AGENCY'
-          ? '보낸 캐스팅 제안'
-          : '받은 캐스팅 제안'}
+          {isAgency ? '보낸 캐스팅 제안' : '받은 캐스팅 제안'}
         </h1>
       </div>
 
@@ -85,7 +89,15 @@ export default function CastingPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {filtered.map((offer) => <OfferCard key={offer.id} offer={offer} />)}
+            {filtered.map((offer) => (
+              <OfferCard
+                key={offer.id}
+                offer={offer}
+                onDelete={isAgency && DELETABLE_STATUSES.includes(offer.status)
+                  ? () => handleDelete(offer.id)
+                  : undefined}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -93,7 +105,13 @@ export default function CastingPage() {
   );
 }
 
-function OfferCard({ offer }: { offer: CastingOfferWithDetails }) {
+function OfferCard({
+  offer,
+  onDelete,
+}: {
+  offer: CastingOfferWithDetails;
+  onDelete?: () => void;
+}) {
   const statusColor: Record<string, string> = {
     ACCEPTED: 'text-green-600',
     AUDITION_SUBMITTED: 'text-green-600',
@@ -101,8 +119,8 @@ function OfferCard({ offer }: { offer: CastingOfferWithDetails }) {
   };
 
   return (
-    <Link href={`/casting/${offer.id}`}>
-      <div className="flex gap-3 bg-white border border-[#F0F0F0] rounded-xl p-3">
+    <div className="relative flex bg-white border border-[#F0F0F0] rounded-xl overflow-hidden">
+      <Link href={`/casting/${offer.id}`} className="flex gap-3 p-3 flex-1 min-w-0">
         {/* 포스터 */}
         <div className="w-[64px] h-[86px] rounded-lg bg-[#F5F5F5] flex-shrink-0" />
         {/* 정보 */}
@@ -124,7 +142,18 @@ function OfferCard({ offer }: { offer: CastingOfferWithDetails }) {
             </span>
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {/* 삭제 버튼 — 에이전시 + 삭제 가능 상태일 때만 표시 */}
+      {onDelete && (
+        <button
+          onClick={onDelete}
+          className="flex-shrink-0 px-3 flex items-center justify-center border-l border-[#F0F0F0] text-[#BBBBBB] hover:text-[#E53935] hover:bg-[#FFF5F5] transition-colors"
+          title="삭제"
+        >
+          <X size={16} />
+        </button>
+      )}
+    </div>
   );
 }

@@ -145,7 +145,7 @@ export default function CastingDetailPage() {
       {(CASTING_STATUS_MAP as any)[offer.status]}
     </span>
 
-    {isSender && offer.status === 'PENDING' && (
+    {isSender && ['PENDING', 'REJECTED', 'EXPIRED', 'REJECTED_AFTER_AUDITION'].includes(offer.status) && (
       <button
         onClick={handleDelete}
         className="text-[12px] px-3 py-1.5 rounded-full bg-[#FEE2E2] text-[#E53935]"
